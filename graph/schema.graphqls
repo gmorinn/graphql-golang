@@ -1,29 +1,58 @@
-enum CliqueType {
-  "People who are elite with parents having money"
-  KOOKS
-  "People who desperate to move up the social ladder to become new versions of themselves and establish new beginnings"
-  POGUES
+scalar Time
+scalar Upload
+
+enum UserType {
+  ADMIN
+  PRO
+  USER
 }
 
 type Query {
-  character(id:ID!): Character
-  characters(cliqueType:CliqueType!): [Character!]
+  student(id:ID!): Student
+  students(limit: Int!): [Student!]
 }
 
 type Mutation {
-  upsertCharacter(input: CharacterInput!): Character!
+  addOrUpdateStudent(input: StudentInput!): Student!
 }
 
-type Character {
-  id: ID!
+interface User {
   name: String!
-  isHero: Boolean!
-  cliqueType: CliqueType!
+  id: ID!
+  role: UserType!
+  created_at: Time!
+  updated_at: Time!
 }
 
-input CharacterInput {
+type Student implements User {
+  name: String!
+  id: ID!
+  age: Int!
+  gpa: Float!
+  passions: [String!]
+  is_premium: Boolean!
+  role: UserType!
+  created_at: Time!
+  updated_at: Time!
+  competences: [Competence!]
+}
+
+input StudentInput {
   name: String!
   id: String
-  isHero: Boolean
-  cliqueType: CliqueType!
+  age: Int!
+  gpa: Float!
+  passions: [String!]
+  is_premium: Boolean
+  role: UserType
+  created_at: Time
+  updated_at: Time
+}
+
+type Competence {
+  name: String!
+}
+
+type CompetenceInput {
+  name: String!
 }

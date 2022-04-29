@@ -6,61 +6,87 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"time"
 )
 
-type Character struct {
-	ID         string     `json:"id"`
-	Name       string     `json:"name"`
-	IsHero     bool       `json:"isHero"`
-	CliqueType CliqueType `json:"cliqueType"`
+type User interface {
+	IsUser()
 }
 
-type CharacterInput struct {
-	Name       string     `json:"name"`
-	ID         *string    `json:"id"`
-	IsHero     *bool      `json:"isHero"`
-	CliqueType CliqueType `json:"cliqueType"`
+type Competence struct {
+	Name string `json:"name"`
 }
 
-type CliqueType string
+type CompetenceInput struct {
+	Name string `json:"name"`
+}
+
+type Student struct {
+	Name        string        `json:"name"`
+	ID          string        `json:"id"`
+	Age         int           `json:"age"`
+	Gpa         float64       `json:"gpa"`
+	Passions    []string      `json:"passions"`
+	IsPremium   bool          `json:"is_premium"`
+	Role        UserType      `json:"role"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
+	Competences []*Competence `json:"competences"`
+}
+
+func (Student) IsUser() {}
+
+type StudentInput struct {
+	Name      string     `json:"name"`
+	ID        *string    `json:"id"`
+	Age       int        `json:"age"`
+	Gpa       float64    `json:"gpa"`
+	Passions  []string   `json:"passions"`
+	IsPremium *bool      `json:"is_premium"`
+	Role      *UserType  `json:"role"`
+	CreatedAt *time.Time `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+type UserType string
 
 const (
-	// People who are elite with parents having money
-	CliqueTypeKooks CliqueType = "KOOKS"
-	// People who desperate to move up the social ladder to become new versions of themselves and establish new beginnings
-	CliqueTypePogues CliqueType = "POGUES"
+	UserTypeAdmin UserType = "ADMIN"
+	UserTypePro   UserType = "PRO"
+	UserTypeUser  UserType = "USER"
 )
 
-var AllCliqueType = []CliqueType{
-	CliqueTypeKooks,
-	CliqueTypePogues,
+var AllUserType = []UserType{
+	UserTypeAdmin,
+	UserTypePro,
+	UserTypeUser,
 }
 
-func (e CliqueType) IsValid() bool {
+func (e UserType) IsValid() bool {
 	switch e {
-	case CliqueTypeKooks, CliqueTypePogues:
+	case UserTypeAdmin, UserTypePro, UserTypeUser:
 		return true
 	}
 	return false
 }
 
-func (e CliqueType) String() string {
+func (e UserType) String() string {
 	return string(e)
 }
 
-func (e *CliqueType) UnmarshalGQL(v interface{}) error {
+func (e *UserType) UnmarshalGQL(v interface{}) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
 	}
 
-	*e = CliqueType(str)
+	*e = UserType(str)
 	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid CliqueType", str)
+		return fmt.Errorf("%s is not a valid UserType", str)
 	}
 	return nil
 }
 
-func (e CliqueType) MarshalGQL(w io.Writer) {
+func (e UserType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

@@ -8,60 +8,96 @@ import (
 	"fmt"
 	"graphql-golang/graph/generated"
 	"graphql-golang/graph/model"
-	"strconv"
+	"time"
+
+	"github.com/google/uuid"
 )
 
-func (r *mutationResolver) UpsertCharacter(ctx context.Context, input model.CharacterInput) (*model.Character, error) {
+func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.StudentInput) (*model.Student, error) {
 	id := input.ID
-	var character model.Character
-	character.Name = input.Name
-	character.CliqueType = input.CliqueType
+	var user model.Student
+	user.Name = input.Name
+	user.Age = input.Age
+	user.Gpa = input.Gpa
 
-	n := len(r.Resolver.CharacterStore)
+	n := len(r.Resolver.StudentStore)
 	if n == 0 {
-		r.Resolver.CharacterStore = make(map[string]model.Character)
+		r.Resolver.StudentStore = make(map[string]model.Student)
 	}
 
 	if id != nil {
-		cs, ok := r.Resolver.CharacterStore[*id]
+		cs, ok := r.Resolver.StudentStore[*id]
 		if !ok {
 			return nil, fmt.Errorf("not found")
 		}
-		if input.IsHero != nil {
-			character.IsHero = *input.IsHero
+		// is_premium
+		if input.IsPremium != nil {
+			user.IsPremium = *input.IsPremium
 		} else {
-			character.IsHero = cs.IsHero
+			user.IsPremium = cs.IsPremium
 		}
-		r.Resolver.CharacterStore[*id] = character
+		// role
+		if input.Role != nil {
+			user.Role = *input.Role
+		} else {
+			user.Role = cs.Role
+		}
+		// passion
+		if input.Passions != nil {
+			user.Passions = input.Passions
+		} else {
+			user.Passions = cs.Passions
+		}
+		user.UpdatedAt = time.Now()
+		r.Resolver.StudentStore[*id] = user
 	} else {
-		// generate unique id
-		nid := strconv.Itoa(n + 1)
-		character.ID = nid
-		if input.IsHero != nil {
-			character.IsHero = *input.IsHero
+		nid := uuid.New().String()
+		user.ID = nid
+		// role
+		if input.Role != nil {
+			user.Role = *input.Role
+		} else {
+			user.Role = model.UserTypeUser
 		}
-		r.Resolver.CharacterStore[nid] = character
+		// premium
+		if input.IsPremium != nil {
+			user.IsPremium = *input.IsPremium
+		} else {
+			user.IsPremium = false
+		}
+		// passions
+		if input.Passions != nil {
+			user.Passions = input.Passions
+		} else {
+			user.Passions = nil
+		}
+		user.CreatedAt = time.Now()
+		user.UpdatedAt = time.Now()
+		r.Resolver.StudentStore[nid] = user
 	}
 
-	return &character, nil
+	return &user, nil
 }
 
-func (r *queryResolver) Character(ctx context.Context, id string) (*model.Character, error) {
-	character, ok := r.Resolver.CharacterStore[id]
+func (r *queryResolver) Student(ctx context.Context, id string) (*model.Student, error) {
+	res, ok := r.Resolver.StudentStore[id]
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
-	return &character, nil
+	return &res, nil
 }
 
-func (r *queryResolver) Characters(ctx context.Context, cliqueType model.CliqueType) ([]*model.Character, error) {
-	var res []*model.Character = make([]*model.Character, 0)
+func (r *queryResolver) Students(ctx context.Context, limit int) ([]*model.Student, error) {
+	var res []*model.Student = make([]*model.Student, 0)
+	var u model.Student
 
-	for i := range r.Resolver.CharacterStore {
-		character := r.Resolver.CharacterStore[i]
-		if character.CliqueType == cliqueType {
-			res = append(res, &character)
+	for i := range r.Resolver.StudentStore {
+		if len(res) >= limit {
+			break
 		}
+		u = r.Resolver.StudentStore[i]
+		res = append(res, &u)
+
 	}
 	return res, nil
 }

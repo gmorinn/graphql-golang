@@ -7,5 +7,5 @@ import "graphql-golang/graph/model"
 // It serves as dependency injection for your app, add any dependencies you require here.
 
 type Resolver struct {
-	CharacterStore map[string]model.Character
+	StudentStore map[string]model.Student
 }
