@@ -1,52 +1,94 @@
 scalar Time
 scalar Upload
+scalar Email
+# directive @hasRole(role: UserType!) on FIELD_DEFINITION
 
 enum UserType {
+  "User can have access to all data"
   ADMIN
+  "User can access specific data but not all"
   PRO
+  "User can only see their own data"
   USER
 }
 
+
+interface Response {
+  success: Boolean!
+}
+
+"if there is an error, return it or null"
+type ErrorResponse {
+  err: String!
+  error_code: String!
+}
+
 type Query {
-  student(id:ID!): Student
-  students(limit: Int!): [Student!]
+  "returns one student by his id precising in the payload"
+  student(id:ID!): GetStudentResponse!
+  "returns all students with a limit precising in the payload, need to be admin to access"
+  students(limit: Int!): GetStudentsResponse! 
 }
 
 type Mutation {
-  addOrUpdateStudent(input: StudentInput!): Student!
+  """
+  add or update a student.
+  don't forget to add the id of the student if you want to update it
+  don't add the id if you want to add a new student
+  """
+  addOrUpdateStudent(input: StudentInput!): GetStudentResponse!
 }
 
+"Interface that have the mandatory fields of the user in all projects"
 interface User {
-  name: String!
   id: ID!
   role: UserType!
   created_at: Time!
   updated_at: Time!
+  deleted_at: Time!
 }
 
+"All fields that represent a student"
 type Student implements User {
   name: String!
+  email: Email!
   id: ID!
   age: Int!
   gpa: Float!
   passions: [String!]
-  is_premium: Boolean!
+  is_genius: Boolean!
   role: UserType!
   created_at: Time!
+  deleted_at: Time!
   updated_at: Time!
   competences: [Competence!]
+}
+
+"Response when you get a student"
+type GetStudentResponse implements Response {
+  "if the request was successful or not, return always a value"
+  success: Boolean!
+  "return the student if the request was successful"
+  student: Student
+}
+
+"Response when you get many students"
+type GetStudentsResponse implements Response {
+  "if the request was successful or not, return always a value"
+  success: Boolean!
+  "return an array of student if the request was successful or null if there is an error or no students"
+  students: [Student]
 }
 
 input StudentInput {
   name: String!
   id: String
   age: Int!
+  email: Email!
   gpa: Float!
   passions: [String!]
-  is_premium: Boolean
+  is_genius: Boolean
   role: UserType
-  created_at: Time
-  updated_at: Time
 }
 
 type Competence {

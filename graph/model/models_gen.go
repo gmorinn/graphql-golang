@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+type Response interface {
+	IsResponse()
+}
+
+// Interface that have the mandatory fields of the user in all projects
 type User interface {
 	IsUser()
 }
@@ -21,15 +26,44 @@ type CompetenceInput struct {
 	Name string `json:"name"`
 }
 
+// if there is an error, return it or null
+type ErrorResponse struct {
+	Err       string `json:"err"`
+	ErrorCode string `json:"error_code"`
+}
+
+// Response when you get a student
+type GetStudentResponse struct {
+	// if the request was successful or not, return always a value
+	Success bool `json:"success"`
+	// return the student if the request was successful
+	Student *Student `json:"student"`
+}
+
+func (GetStudentResponse) IsResponse() {}
+
+// Response when you get many students
+type GetStudentsResponse struct {
+	// if the request was successful or not, return always a value
+	Success bool `json:"success"`
+	// return an array of student if the request was successful or null if there is an error or no students
+	Students []*Student `json:"students"`
+}
+
+func (GetStudentsResponse) IsResponse() {}
+
+// All fields that represent a student
 type Student struct {
 	Name        string        `json:"name"`
+	Email       string        `json:"email"`
 	ID          string        `json:"id"`
 	Age         int           `json:"age"`
 	Gpa         float64       `json:"gpa"`
 	Passions    []string      `json:"passions"`
-	IsPremium   bool          `json:"is_premium"`
+	IsGenius    bool          `json:"is_genius"`
 	Role        UserType      `json:"role"`
 	CreatedAt   time.Time     `json:"created_at"`
+	DeletedAt   time.Time     `json:"deleted_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
 	Competences []*Competence `json:"competences"`
 }
@@ -37,23 +71,25 @@ type Student struct {
 func (Student) IsUser() {}
 
 type StudentInput struct {
-	Name      string     `json:"name"`
-	ID        *string    `json:"id"`
-	Age       int        `json:"age"`
-	Gpa       float64    `json:"gpa"`
-	Passions  []string   `json:"passions"`
-	IsPremium *bool      `json:"is_premium"`
-	Role      *UserType  `json:"role"`
-	CreatedAt *time.Time `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at"`
+	Name     string    `json:"name"`
+	ID       *string   `json:"id"`
+	Age      int       `json:"age"`
+	Email    string    `json:"email"`
+	Gpa      float64   `json:"gpa"`
+	Passions []string  `json:"passions"`
+	IsGenius *bool     `json:"is_genius"`
+	Role     *UserType `json:"role"`
 }
 
 type UserType string
 
 const (
+	// User can have access to all data
 	UserTypeAdmin UserType = "ADMIN"
-	UserTypePro   UserType = "PRO"
-	UserTypeUser  UserType = "USER"
+	// User can access specific data but not all
+	UserTypePro UserType = "PRO"
+	// User can only see their own data
+	UserTypeUser UserType = "USER"
 )
 
 var AllUserType = []UserType{

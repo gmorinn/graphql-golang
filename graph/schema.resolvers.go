@@ -8,17 +8,20 @@ import (
 	"fmt"
 	"graphql-golang/graph/generated"
 	"graphql-golang/graph/model"
+	"graphql-golang/utils"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.StudentInput) (*model.Student, error) {
+func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.StudentInput) (*model.GetStudentResponse, error) {
+	var res model.GetStudentResponse
 	id := input.ID
 	var user model.Student
 	user.Name = input.Name
 	user.Age = input.Age
 	user.Gpa = input.Gpa
+	user.Email = input.Email
 
 	n := len(r.Resolver.StudentStore)
 	if n == 0 {
@@ -28,13 +31,13 @@ func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.S
 	if id != nil {
 		cs, ok := r.Resolver.StudentStore[*id]
 		if !ok {
-			return nil, fmt.Errorf("not found")
+			return nil, utils.ErrorResponse(ctx, "USER_NOT_FOUND", fmt.Errorf("user not found"))
 		}
 		// is_premium
-		if input.IsPremium != nil {
-			user.IsPremium = *input.IsPremium
+		if input.IsGenius != nil {
+			user.IsGenius = *input.IsGenius
 		} else {
-			user.IsPremium = cs.IsPremium
+			user.IsGenius = cs.IsGenius
 		}
 		// role
 		if input.Role != nil {
@@ -60,10 +63,10 @@ func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.S
 			user.Role = model.UserTypeUser
 		}
 		// premium
-		if input.IsPremium != nil {
-			user.IsPremium = *input.IsPremium
+		if input.IsGenius != nil {
+			user.IsGenius = *input.IsGenius
 		} else {
-			user.IsPremium = false
+			user.IsGenius = false
 		}
 		// passions
 		if input.Passions != nil {
@@ -75,31 +78,37 @@ func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.S
 		user.UpdatedAt = time.Now()
 		r.Resolver.StudentStore[nid] = user
 	}
-
-	return &user, nil
-}
-
-func (r *queryResolver) Student(ctx context.Context, id string) (*model.Student, error) {
-	res, ok := r.Resolver.StudentStore[id]
-	if !ok {
-		return nil, fmt.Errorf("not found")
-	}
+	res.Success = true
+	res.Student = &user
 	return &res, nil
 }
 
-func (r *queryResolver) Students(ctx context.Context, limit int) ([]*model.Student, error) {
-	var res []*model.Student = make([]*model.Student, 0)
-	var u model.Student
+func (r *queryResolver) Student(ctx context.Context, id string) (*model.GetStudentResponse, error) {
+	var res model.GetStudentResponse
+	student, ok := r.Resolver.StudentStore[id]
+
+	if !ok {
+		return nil, utils.ErrorResponse(ctx, "USER_NOT_FOUND", fmt.Errorf("user not found"))
+	}
+	res.Student = &student
+	res.Success = true
+	return &res, nil
+}
+
+func (r *queryResolver) Students(ctx context.Context, limit int) (*model.GetStudentsResponse, error) {
+	var res model.GetStudentsResponse
+	students := make([]*model.Student, 0)
 
 	for i := range r.Resolver.StudentStore {
-		if len(res) >= limit {
+		if len(students) >= limit {
 			break
 		}
-		u = r.Resolver.StudentStore[i]
-		res = append(res, &u)
-
+		u := r.Resolver.StudentStore[i]
+		students = append(students, &u)
 	}
-	return res, nil
+	res.Students = students
+	res.Success = true
+	return &res, nil
 }
 
 // Mutation returns generated.MutationResolver implementation.
