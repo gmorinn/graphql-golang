@@ -1,6 +1,8 @@
 scalar Time
 scalar Upload
+scalar UUID
 scalar Email
+scalar URL
 # directive @hasRole(role: UserType!) on FIELD_DEFINITION
 
 enum UserType {
@@ -25,9 +27,9 @@ type ErrorResponse {
 
 type Query {
   "returns one student by his id precising in the payload"
-  student(id:ID!): GetStudentResponse!
+  student(id:UUID!): GetStudentResponse!
   "returns all students with a limit precising in the payload, need to be admin to access"
-  students(limit: Int!): GetStudentsResponse! 
+  students(limit: Int!): GetStudentsResponse!
 }
 
 type Mutation {
@@ -41,7 +43,7 @@ type Mutation {
 
 "Interface that have the mandatory fields of the user in all projects"
 interface User {
-  id: ID!
+  id: UUID!
   role: UserType!
   created_at: Time!
   updated_at: Time!
@@ -52,8 +54,9 @@ interface User {
 type Student implements User {
   name: String!
   email: Email!
-  id: ID!
+  id: UUID!
   age: Int!
+  url: URL!
   gpa: Float!
   passions: [String!]
   is_genius: Boolean!
@@ -82,9 +85,10 @@ type GetStudentsResponse implements Response {
 
 input StudentInput {
   name: String!
-  id: String
+  id: UUID
   age: Int!
   email: Email!
+  url: URL!
   gpa: Float!
   passions: [String!]
   is_genius: Boolean

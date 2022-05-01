@@ -1,4 +1,4 @@
-package scalar
+package mypkg
 
 import (
 	"fmt"
@@ -8,11 +8,10 @@ import (
 
 type Email string
 
-// UnmarshalGQL implements the graphql.Unmarshaler interface
 func (value *Email) UnmarshalGQL(v interface{}) error {
 	data, ok := v.(string)
 	if !ok {
-		return fmt.Errorf("Email must be a string")
+		return fmt.Errorf("email must be a string")
 	}
 	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
 	if emailRegex.MatchString(data) {
@@ -23,7 +22,6 @@ func (value *Email) UnmarshalGQL(v interface{}) error {
 	return nil
 }
 
-// MarshalGQL implements the graphql.Marshaler interface
 func (value Email) MarshalGQL(w io.Writer) {
-	w.Write([]byte(value))
+	w.Write([]byte(fmt.Sprintf("\"%s\"", value)))
 }

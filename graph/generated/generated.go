@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"graphql-golang/graph/model"
+	"graphql-golang/graph/mypkg"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -73,7 +74,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Student  func(childComplexity int, id string) int
+		Student  func(childComplexity int, id mypkg.UUID) int
 		Students func(childComplexity int, limit int) int
 	}
 
@@ -89,6 +90,7 @@ type ComplexityRoot struct {
 		Name        func(childComplexity int) int
 		Passions    func(childComplexity int) int
 		Role        func(childComplexity int) int
+		URL         func(childComplexity int) int
 		UpdatedAt   func(childComplexity int) int
 	}
 }
@@ -97,7 +99,7 @@ type MutationResolver interface {
 	AddOrUpdateStudent(ctx context.Context, input model.StudentInput) (*model.GetStudentResponse, error)
 }
 type QueryResolver interface {
-	Student(ctx context.Context, id string) (*model.GetStudentResponse, error)
+	Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
 	Students(ctx context.Context, limit int) (*model.GetStudentsResponse, error)
 }
 
@@ -194,7 +196,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.Student(childComplexity, args["id"].(string)), true
+		return e.complexity.Query.Student(childComplexity, args["id"].(mypkg.UUID)), true
 
 	case "Query.students":
 		if e.complexity.Query.Students == nil {
@@ -285,6 +287,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Student.Role(childComplexity), true
 
+	case "Student.url":
+		if e.complexity.Student.URL == nil {
+			break
+		}
+
+		return e.complexity.Student.URL(childComplexity), true
+
 	case "Student.updated_at":
 		if e.complexity.Student.UpdatedAt == nil {
 			break
@@ -363,7 +372,9 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 var sources = []*ast.Source{
 	{Name: "graph/schema.graphqls", Input: `scalar Time
 scalar Upload
+scalar UUID
 scalar Email
+scalar URL
 # directive @hasRole(role: UserType!) on FIELD_DEFINITION
 
 enum UserType {
@@ -388,9 +399,9 @@ type ErrorResponse {
 
 type Query {
   "returns one student by his id precising in the payload"
-  student(id:ID!): GetStudentResponse!
+  student(id:UUID!): GetStudentResponse!
   "returns all students with a limit precising in the payload, need to be admin to access"
-  students(limit: Int!): GetStudentsResponse! 
+  students(limit: Int!): GetStudentsResponse!
 }
 
 type Mutation {
@@ -404,7 +415,7 @@ type Mutation {
 
 "Interface that have the mandatory fields of the user in all projects"
 interface User {
-  id: ID!
+  id: UUID!
   role: UserType!
   created_at: Time!
   updated_at: Time!
@@ -415,8 +426,9 @@ interface User {
 type Student implements User {
   name: String!
   email: Email!
-  id: ID!
+  id: UUID!
   age: Int!
+  url: URL!
   gpa: Float!
   passions: [String!]
   is_genius: Boolean!
@@ -445,9 +457,10 @@ type GetStudentsResponse implements Response {
 
 input StudentInput {
   name: String!
-  id: String
+  id: UUID
   age: Int!
   email: Email!
+  url: URL!
   gpa: Float!
   passions: [String!]
   is_genius: Boolean
@@ -501,10 +514,10 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Query_student_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 mypkg.UUID
 	if tmp, ok := rawArgs["id"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		arg0, err = ec.unmarshalNUUID2graphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -830,6 +843,8 @@ func (ec *executionContext) fieldContext_GetStudentResponse_student(ctx context.
 				return ec.fieldContext_Student_id(ctx, field)
 			case "age":
 				return ec.fieldContext_Student_age(ctx, field)
+			case "url":
+				return ec.fieldContext_Student_url(ctx, field)
 			case "gpa":
 				return ec.fieldContext_Student_gpa(ctx, field)
 			case "passions":
@@ -941,6 +956,8 @@ func (ec *executionContext) fieldContext_GetStudentsResponse_students(ctx contex
 				return ec.fieldContext_Student_id(ctx, field)
 			case "age":
 				return ec.fieldContext_Student_age(ctx, field)
+			case "url":
+				return ec.fieldContext_Student_url(ctx, field)
 			case "gpa":
 				return ec.fieldContext_Student_gpa(ctx, field)
 			case "passions":
@@ -1039,7 +1056,7 @@ func (ec *executionContext) _Query_student(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Student(rctx, fc.Args["id"].(string))
+		return ec.resolvers.Query().Student(rctx, fc.Args["id"].(mypkg.UUID))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1346,9 +1363,9 @@ func (ec *executionContext) _Student_email(ctx context.Context, field graphql.Co
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(mypkg.Email)
 	fc.Result = res
-	return ec.marshalNEmail2string(ctx, field.Selections, res)
+	return ec.marshalNEmail2graphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Student_email(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1390,9 +1407,9 @@ func (ec *executionContext) _Student_id(ctx context.Context, field graphql.Colle
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(mypkg.UUID)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNUUID2graphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Student_id(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1402,7 +1419,7 @@ func (ec *executionContext) fieldContext_Student_id(ctx context.Context, field g
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type UUID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1447,6 +1464,50 @@ func (ec *executionContext) fieldContext_Student_age(ctx context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Student_url(ctx context.Context, field graphql.CollectedField, obj *model.Student) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Student_url(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.URL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(mypkg.URL)
+	fc.Result = res
+	return ec.marshalNURL2graphqlᚑgolangᚋgraphᚋmypkgᚐURL(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Student_url(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Student",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type URL does not have child fields")
 		},
 	}
 	return fc, nil
@@ -3596,7 +3657,7 @@ func (ec *executionContext) unmarshalInputStudentInput(ctx context.Context, obj 
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-			it.ID, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			it.ID, err = ec.unmarshalOUUID2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3612,7 +3673,15 @@ func (ec *executionContext) unmarshalInputStudentInput(ctx context.Context, obj 
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
-			it.Email, err = ec.unmarshalNEmail2string(ctx, v)
+			it.Email, err = ec.unmarshalNEmail2graphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "url":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("url"))
+			it.URL, err = ec.unmarshalNURL2graphqlᚑgolangᚋgraphᚋmypkgᚐURL(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4021,6 +4090,13 @@ func (ec *executionContext) _Student(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "url":
+
+			out.Values[i] = ec._Student_url(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "gpa":
 
 			out.Values[i] = ec._Student_gpa(ctx, field, obj)
@@ -4425,19 +4501,14 @@ func (ec *executionContext) marshalNCompetence2ᚖgraphqlᚑgolangᚋgraphᚋmod
 	return ec._Competence(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNEmail2string(ctx context.Context, v interface{}) (string, error) {
-	res, err := graphql.UnmarshalString(v)
+func (ec *executionContext) unmarshalNEmail2graphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx context.Context, v interface{}) (mypkg.Email, error) {
+	var res mypkg.Email
+	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNEmail2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
-	res := graphql.MarshalString(v)
-	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-	}
-	return res
+func (ec *executionContext) marshalNEmail2graphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx context.Context, sel ast.SelectionSet, v mypkg.Email) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v interface{}) (float64, error) {
@@ -4481,21 +4552,6 @@ func (ec *executionContext) marshalNGetStudentsResponse2ᚖgraphqlᚑgolangᚋgr
 		return graphql.Null
 	}
 	return ec._GetStudentsResponse(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface{}) (string, error) {
-	res, err := graphql.UnmarshalID(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
-	res := graphql.MarshalID(v)
-	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-	}
-	return res
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
@@ -4546,6 +4602,26 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNURL2graphqlᚑgolangᚋgraphᚋmypkgᚐURL(ctx context.Context, v interface{}) (mypkg.URL, error) {
+	var res mypkg.URL
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNURL2graphqlᚑgolangᚋgraphᚋmypkgᚐURL(ctx context.Context, sel ast.SelectionSet, v mypkg.URL) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNUUID2graphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx context.Context, v interface{}) (mypkg.UUID, error) {
+	var res mypkg.UUID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUUID2graphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx context.Context, sel ast.SelectionSet, v mypkg.UUID) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx context.Context, v interface{}) (model.UserType, error) {
@@ -4984,6 +5060,22 @@ func (ec *executionContext) marshalOStudent2ᚖgraphqlᚑgolangᚋgraphᚋmodel�
 		return graphql.Null
 	}
 	return ec._Student(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOUUID2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx context.Context, v interface{}) (*mypkg.UUID, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(mypkg.UUID)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOUUID2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx context.Context, sel ast.SelectionSet, v *mypkg.UUID) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOUserType2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx context.Context, v interface{}) (*model.UserType, error) {

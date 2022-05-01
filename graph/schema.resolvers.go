@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"graphql-golang/graph/generated"
 	"graphql-golang/graph/model"
+	"graphql-golang/graph/mypkg"
 	"graphql-golang/utils"
 	"time"
 
@@ -16,11 +17,11 @@ import (
 
 func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.StudentInput) (*model.GetStudentResponse, error) {
 	var res model.GetStudentResponse
-	id := input.ID
 	var user model.Student
 	user.Name = input.Name
 	user.Age = input.Age
 	user.Gpa = input.Gpa
+	user.URL = input.URL
 	user.Email = input.Email
 
 	n := len(r.Resolver.StudentStore)
@@ -28,8 +29,9 @@ func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.S
 		r.Resolver.StudentStore = make(map[string]model.Student)
 	}
 
-	if id != nil {
-		cs, ok := r.Resolver.StudentStore[*id]
+	if input.ID != nil {
+		id := *input.ID
+		cs, ok := r.Resolver.StudentStore[string(id)]
 		if !ok {
 			return nil, utils.ErrorResponse(ctx, "USER_NOT_FOUND", fmt.Errorf("user not found"))
 		}
@@ -52,10 +54,10 @@ func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.S
 			user.Passions = cs.Passions
 		}
 		user.UpdatedAt = time.Now()
-		r.Resolver.StudentStore[*id] = user
+		r.Resolver.StudentStore[string(id)] = user
 	} else {
 		nid := uuid.New().String()
-		user.ID = nid
+		user.ID = mypkg.UUID(nid)
 		// role
 		if input.Role != nil {
 			user.Role = *input.Role
@@ -83,9 +85,9 @@ func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.S
 	return &res, nil
 }
 
-func (r *queryResolver) Student(ctx context.Context, id string) (*model.GetStudentResponse, error) {
+func (r *queryResolver) Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error) {
 	var res model.GetStudentResponse
-	student, ok := r.Resolver.StudentStore[id]
+	student, ok := r.Resolver.StudentStore[string(id)]
 
 	if !ok {
 		return nil, utils.ErrorResponse(ctx, "USER_NOT_FOUND", fmt.Errorf("user not found"))

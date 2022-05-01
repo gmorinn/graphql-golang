@@ -4,6 +4,7 @@ package model
 
 import (
 	"fmt"
+	"graphql-golang/graph/mypkg"
 	"io"
 	"strconv"
 	"time"
@@ -55,9 +56,10 @@ func (GetStudentsResponse) IsResponse() {}
 // All fields that represent a student
 type Student struct {
 	Name        string        `json:"name"`
-	Email       string        `json:"email"`
-	ID          string        `json:"id"`
+	Email       mypkg.Email   `json:"email"`
+	ID          mypkg.UUID    `json:"id"`
 	Age         int           `json:"age"`
+	URL         mypkg.URL     `json:"url"`
 	Gpa         float64       `json:"gpa"`
 	Passions    []string      `json:"passions"`
 	IsGenius    bool          `json:"is_genius"`
@@ -71,14 +73,15 @@ type Student struct {
 func (Student) IsUser() {}
 
 type StudentInput struct {
-	Name     string    `json:"name"`
-	ID       *string   `json:"id"`
-	Age      int       `json:"age"`
-	Email    string    `json:"email"`
-	Gpa      float64   `json:"gpa"`
-	Passions []string  `json:"passions"`
-	IsGenius *bool     `json:"is_genius"`
-	Role     *UserType `json:"role"`
+	Name     string      `json:"name"`
+	ID       *mypkg.UUID `json:"id"`
+	Age      int         `json:"age"`
+	Email    mypkg.Email `json:"email"`
+	URL      mypkg.URL   `json:"url"`
+	Gpa      float64     `json:"gpa"`
+	Passions []string    `json:"passions"`
+	IsGenius *bool       `json:"is_genius"`
+	Role     *UserType   `json:"role"`
 }
 
 type UserType string

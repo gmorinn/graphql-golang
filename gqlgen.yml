@@ -54,3 +54,11 @@ models:
       - github.com/99designs/gqlgen/graphql.Int
       - github.com/99designs/gqlgen/graphql.Int64
       - github.com/99designs/gqlgen/graphql.Int32
+  Email:
+    model: graphql-golang/graph/mypkg.Email
+  UUID:
+    model: graphql-golang/graph/mypkg.UUID
+  URL:
+    model: graphql-golang/graph/mypkg.URL
+
+

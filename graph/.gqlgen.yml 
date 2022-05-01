@@ -1,3 +1,0 @@
-models:
-  Email:
-    model: graphql-golang/graph/scalar.Email
