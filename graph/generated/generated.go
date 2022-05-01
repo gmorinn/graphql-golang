@@ -405,11 +405,6 @@ type Query {
 }
 
 type Mutation {
-  """
-  add or update a student.
-  don't forget to add the id of the student if you want to update it
-  don't add the id if you want to add a new student
-  """
   addOrUpdateStudent(input: StudentInput!): GetStudentResponse!
 }
 
@@ -473,7 +468,8 @@ type Competence {
 
 type CompetenceInput {
   name: String!
-}`, BuiltIn: false},
+}
+`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
