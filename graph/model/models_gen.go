@@ -68,6 +68,7 @@ type Student struct {
 	DeletedAt   time.Time     `json:"deleted_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
 	Competences []*Competence `json:"competences"`
+	Jwt         mypkg.JWT     `json:"jwt"`
 }
 
 func (Student) IsUser() {}
@@ -78,6 +79,7 @@ type StudentInput struct {
 	Age      int         `json:"age"`
 	Email    mypkg.Email `json:"email"`
 	URL      mypkg.URL   `json:"url"`
+	Jwt      mypkg.JWT   `json:"jwt"`
 	Gpa      float64     `json:"gpa"`
 	Passions []string    `json:"passions"`
 	IsGenius *bool       `json:"is_genius"`

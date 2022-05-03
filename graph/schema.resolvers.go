@@ -22,6 +22,7 @@ func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.S
 	user.Age = input.Age
 	user.Gpa = input.Gpa
 	user.URL = input.URL
+	user.Jwt = input.Jwt
 	user.Email = input.Email
 
 	n := len(r.Resolver.StudentStore)

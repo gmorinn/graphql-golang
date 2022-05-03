@@ -87,6 +87,7 @@ type ComplexityRoot struct {
 		Gpa         func(childComplexity int) int
 		ID          func(childComplexity int) int
 		IsGenius    func(childComplexity int) int
+		Jwt         func(childComplexity int) int
 		Name        func(childComplexity int) int
 		Passions    func(childComplexity int) int
 		Role        func(childComplexity int) int
@@ -266,6 +267,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Student.IsGenius(childComplexity), true
 
+	case "Student.jwt":
+		if e.complexity.Student.Jwt == nil {
+			break
+		}
+
+		return e.complexity.Student.Jwt(childComplexity), true
+
 	case "Student.name":
 		if e.complexity.Student.Name == nil {
 			break
@@ -375,6 +383,7 @@ scalar Upload
 scalar UUID
 scalar Email
 scalar URL
+scalar JWT
 # directive @hasRole(role: UserType!) on FIELD_DEFINITION
 
 enum UserType {
@@ -432,6 +441,7 @@ type Student implements User {
   deleted_at: Time!
   updated_at: Time!
   competences: [Competence!]
+  jwt: JWT!
 }
 
 "Response when you get a student"
@@ -456,6 +466,7 @@ input StudentInput {
   age: Int!
   email: Email!
   url: URL!
+  jwt: JWT!
   gpa: Float!
   passions: [String!]
   is_genius: Boolean
@@ -857,6 +868,8 @@ func (ec *executionContext) fieldContext_GetStudentResponse_student(ctx context.
 				return ec.fieldContext_Student_updated_at(ctx, field)
 			case "competences":
 				return ec.fieldContext_Student_competences(ctx, field)
+			case "jwt":
+				return ec.fieldContext_Student_jwt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Student", field.Name)
 		},
@@ -970,6 +983,8 @@ func (ec *executionContext) fieldContext_GetStudentsResponse_students(ctx contex
 				return ec.fieldContext_Student_updated_at(ctx, field)
 			case "competences":
 				return ec.fieldContext_Student_competences(ctx, field)
+			case "jwt":
+				return ec.fieldContext_Student_jwt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Student", field.Name)
 		},
@@ -1854,6 +1869,50 @@ func (ec *executionContext) fieldContext_Student_competences(ctx context.Context
 				return ec.fieldContext_Competence_name(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Competence", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Student_jwt(ctx context.Context, field graphql.CollectedField, obj *model.Student) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Student_jwt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Jwt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(mypkg.JWT)
+	fc.Result = res
+	return ec.marshalNJWT2graphqlᚑgolangᚋgraphᚋmypkgᚐJWT(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Student_jwt(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Student",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type JWT does not have child fields")
 		},
 	}
 	return fc, nil
@@ -3681,6 +3740,14 @@ func (ec *executionContext) unmarshalInputStudentInput(ctx context.Context, obj 
 			if err != nil {
 				return it, err
 			}
+		case "jwt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jwt"))
+			it.Jwt, err = ec.unmarshalNJWT2graphqlᚑgolangᚋgraphᚋmypkgᚐJWT(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "gpa":
 			var err error
 
@@ -4143,6 +4210,13 @@ func (ec *executionContext) _Student(ctx context.Context, sel ast.SelectionSet, 
 
 			out.Values[i] = ec._Student_competences(ctx, field, obj)
 
+		case "jwt":
+
+			out.Values[i] = ec._Student_jwt(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4563,6 +4637,16 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNJWT2graphqlᚑgolangᚋgraphᚋmypkgᚐJWT(ctx context.Context, v interface{}) (mypkg.JWT, error) {
+	var res mypkg.JWT
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNJWT2graphqlᚑgolangᚋgraphᚋmypkgᚐJWT(ctx context.Context, sel ast.SelectionSet, v mypkg.JWT) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {

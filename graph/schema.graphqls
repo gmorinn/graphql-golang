@@ -3,6 +3,7 @@ scalar Upload
 scalar UUID
 scalar Email
 scalar URL
+scalar JWT
 # directive @hasRole(role: UserType!) on FIELD_DEFINITION
 
 enum UserType {
@@ -60,6 +61,7 @@ type Student implements User {
   deleted_at: Time!
   updated_at: Time!
   competences: [Competence!]
+  jwt: JWT!
 }
 
 "Response when you get a student"
@@ -84,6 +86,7 @@ input StudentInput {
   age: Int!
   email: Email!
   url: URL!
+  jwt: JWT!
   gpa: Float!
   passions: [String!]
   is_genius: Boolean
