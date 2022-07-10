@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"graphql-golang/graph/model"
+	"graphql-golang/cmd/store"
 	"graphql-golang/service"
 )
 
@@ -10,6 +10,6 @@ import (
 // It serves as dependency injection for your app, add any dependencies you require here.
 
 type Resolver struct {
-	StudentStore   map[string]model.Student
 	StudentService service.IStudentService
+	Server         *store.Server
 }

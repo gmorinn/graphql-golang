@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"graphql-golang/graph/model"
 	"graphql-golang/graph/mypkg"
-	"graphql-golang/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,11 +45,11 @@ func (s *StudentService) CreateStudent(ctx context.Context, input *model.Student
 }
 
 func (s *StudentService) UpdateStudent(ctx context.Context, input *model.StudentInput) (*model.GetStudentResponse, error) {
-	var user model.Student
 	id := *input.ID
 	cs, ok := s.StudentStore[string(id)]
+	var user model.Student = cs
 	if !ok {
-		return nil, utils.ErrorResponse(ctx, "USER_NOT_FOUND", fmt.Errorf("user not found"))
+		return nil, fmt.Errorf("user not found")
 	}
 	if input.Name != nil {
 		user.Name = input.Name
@@ -85,7 +84,7 @@ func (s *StudentService) GetStudentByID(ctx context.Context, id mypkg.UUID) (*mo
 	var res model.GetStudentResponse
 	student, ok := s.StudentStore[string(id)]
 	if !ok {
-		return nil, utils.ErrorResponse(ctx, "USER_NOT_FOUND", fmt.Errorf("user not found"))
+		return nil, fmt.Errorf("user not found")
 	}
 	res.Student = &student
 	res.Success = true

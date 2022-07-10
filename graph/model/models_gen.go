@@ -51,8 +51,10 @@ type Student struct {
 	UpdatedAt time.Time   `json:"updated_at"`
 }
 
+// payload send when you add or update a student
 type StudentInput struct {
-	Name  *string     `json:"name"`
+	Name *string `json:"name"`
+	// if you want to update a student, you need to precise his id
 	ID    *mypkg.UUID `json:"id"`
 	Email mypkg.Email `json:"email"`
 }

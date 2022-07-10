@@ -8,7 +8,9 @@
 - unit test flow
 - push to github clean
 - dataloader
+- file
 - authentification
+- cors
 
 # Structure
 ```
@@ -23,11 +25,12 @@
     |── schema
     |── query
     |── internal
-    |── sqlc.yaml
 ├── graphql
     ├─── resolver.go
     ├─── generated.go
-    ├─── model.go
+    ├─── schem.resolvers.go
+    ├─── model
+    │   ├─── models_gen.go
     ├─── mypkg
 ├── service
 ├── utils
@@ -38,6 +41,7 @@ go.mod
 go.sum
 .gitignore
 gqlgen.yml
+sqlc.yaml
 schema.graphql
 Readme.md
 ```

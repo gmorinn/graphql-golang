@@ -3,6 +3,9 @@ ifndef $(GOROOT)
     export GOROOT
 endif
 
+include .env
+export
+
 DIR=$(notdir $(shell pwd))
 export DIR
 
@@ -20,7 +23,7 @@ sql:
 
 dev:
 	@echo -e "\n\t💣\n"
-	@go run server.go
+	docker-compose -p ${PROJECT} up --build --force-recreate --remove-orphans
 
 .PHONY: init gen dev sql
 

@@ -367,8 +367,10 @@ type GetStudentsResponse implements Response {
   students: [Student]
 }
 
+"payload send when you add or update a student"
 input StudentInput {
   name: String
+  "if you want to update a student, you need to precise his id"
   id: UUID
   email: Email!
 }
