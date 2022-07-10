@@ -19,17 +19,17 @@ type IStudentService interface {
 }
 
 type StudentService struct {
-	StudentStore map[string]*model.Student
+	StudentStore map[string]model.Student
 }
 
-func NewStudentService(store map[string]*model.Student) *StudentService {
+func NewStudentService(store map[string]model.Student) *StudentService {
 	return &StudentService{
 		StudentStore: store,
 	}
 }
 
 func (s *StudentService) CreateStudent(ctx context.Context, input *model.StudentInput) (*model.GetStudentResponse, error) {
-	var user *model.Student
+	var user model.Student
 	nid := uuid.New().String()
 	user.ID = mypkg.UUID(nid)
 	user.Email = input.Email
@@ -40,13 +40,13 @@ func (s *StudentService) CreateStudent(ctx context.Context, input *model.Student
 	user.DeletedAt = nil
 	s.StudentStore[nid] = user
 	return &model.GetStudentResponse{
-		Student: user,
+		Student: &user,
 		Success: true,
 	}, nil
 }
 
 func (s *StudentService) UpdateStudent(ctx context.Context, input *model.StudentInput) (*model.GetStudentResponse, error) {
-	var user *model.Student
+	var user model.Student
 	id := *input.ID
 	cs, ok := s.StudentStore[string(id)]
 	if !ok {
@@ -60,7 +60,7 @@ func (s *StudentService) UpdateStudent(ctx context.Context, input *model.Student
 	user.UpdatedAt = time.Now()
 	s.StudentStore[string(id)] = user
 	return &model.GetStudentResponse{
-		Student: user,
+		Student: &user,
 		Success: true,
 	}, nil
 }
@@ -74,7 +74,7 @@ func (s *StudentService) GetStudents(ctx context.Context, limit int) (*model.Get
 			break
 		}
 		u := s.StudentStore[i]
-		students = append(students, u)
+		students = append(students, &u)
 	}
 	res.Students = students
 	res.Success = true
@@ -87,7 +87,7 @@ func (s *StudentService) GetStudentByID(ctx context.Context, id mypkg.UUID) (*mo
 	if !ok {
 		return nil, utils.ErrorResponse(ctx, "USER_NOT_FOUND", fmt.Errorf("user not found"))
 	}
-	res.Student = student
+	res.Student = &student
 	res.Success = true
 	return &res, nil
 }
