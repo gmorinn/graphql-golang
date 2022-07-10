@@ -37,31 +37,16 @@ type Mutation {
   addOrUpdateStudent(input: StudentInput!): GetStudentResponse!
 }
 
-"Interface that have the mandatory fields of the user in all projects"
-interface User {
-  id: UUID!
-  role: UserType!
-  created_at: Time!
-  updated_at: Time!
-  deleted_at: Time!
-}
 
 "All fields that represent a student"
-type Student implements User {
-  name: String!
+type Student {
+  name: String
   email: Email!
   id: UUID!
-  age: Int!
-  url: URL!
-  gpa: Float!
-  passions: [String!]
-  is_genius: Boolean!
   role: UserType!
   created_at: Time!
-  deleted_at: Time!
+  deleted_at: Time
   updated_at: Time!
-  competences: [Competence!]
-  jwt: JWT!
 }
 
 "Response when you get a student"
@@ -81,22 +66,7 @@ type GetStudentsResponse implements Response {
 }
 
 input StudentInput {
-  name: String!
+  name: String
   id: UUID
-  age: Int!
   email: Email!
-  url: URL!
-  jwt: JWT!
-  gpa: Float!
-  passions: [String!]
-  is_genius: Boolean
-  role: UserType
-}
-
-type Competence {
-  name: String!
-}
-
-type CompetenceInput {
-  name: String!
 }
