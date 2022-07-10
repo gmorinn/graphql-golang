@@ -1,4 +1,4 @@
--- name: UpdateDescriptionStudent :exec
+-- name: UpdateStudent :exec
 UPDATE students
 SET name = $1,
     email = $2,
@@ -26,5 +26,10 @@ WHERE deleted_at IS NULL;
 -- name: Liststudents :many
 SELECT * FROM students
 WHERE deleted_at IS NULL
-AND (name ILIKE $1 OR email ILIKE $1)
-LIMIT 5;
+ORDER BY name
+LIMIT $1 OFFSET $2;
+
+-- name: InsertStudent :one
+INSERT INTO students (email, name)
+VALUES ($1, $2)
+RETURNING *;

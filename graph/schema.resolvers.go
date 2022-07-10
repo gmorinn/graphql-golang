@@ -9,13 +9,14 @@ import (
 	"graphql-golang/graph/mypkg"
 )
 
-// AddOrUpdateStudent is the resolver for the addOrUpdateStudent field.
-func (r *mutationResolver) AddOrUpdateStudent(ctx context.Context, input model.StudentInput) (*model.GetStudentResponse, error) {
-	if input.ID != nil {
-		return r.Resolver.StudentService.UpdateStudent(ctx, &input)
-	} else {
-		return r.Resolver.StudentService.CreateStudent(ctx, &input)
-	}
+// AddStudent is the resolver for the addStudent field.
+func (r *mutationResolver) AddStudent(ctx context.Context, input model.AddStudentInput) (*model.GetStudentResponse, error) {
+	return r.Resolver.StudentService.CreateStudent(ctx, &input)
+}
+
+// UpdateStudent is the resolver for the UpdateStudent field.
+func (r *mutationResolver) UpdateStudent(ctx context.Context, input model.UpdateStudentInput) (*model.GetStudentResponse, error) {
+	return r.Resolver.StudentService.UpdateStudent(ctx, &input)
 }
 
 // Student is the resolver for the student field.
@@ -24,8 +25,8 @@ func (r *queryResolver) Student(ctx context.Context, id mypkg.UUID) (*model.GetS
 }
 
 // Students is the resolver for the students field.
-func (r *queryResolver) Students(ctx context.Context, limit int) (*model.GetStudentsResponse, error) {
-	return r.StudentService.GetStudents(ctx, limit)
+func (r *queryResolver) Students(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error) {
+	return r.StudentService.GetStudents(ctx, limit, offset)
 }
 
 // Mutation returns MutationResolver implementation.

@@ -30,17 +30,18 @@ type Query {
   "returns one student by his id precising in the payload"
   student(id:UUID!): GetStudentResponse!
   "returns all students with a limit precising in the payload, need to be admin to access"
-  students(limit: Int!): GetStudentsResponse!
+  students(limit: Int!, offset: Int!): GetStudentsResponse!
 }
 
 type Mutation {
-  addOrUpdateStudent(input: StudentInput!): GetStudentResponse!
+  addStudent(input: AddStudentInput!): GetStudentResponse!
+  UpdateStudent(input: UpdateStudentInput!): GetStudentResponse!
 }
 
 
 "All fields that represent a student"
 type Student {
-  name: String
+  name: String!
   email: Email!
   id: UUID!
   role: UserType!
@@ -65,10 +66,16 @@ type GetStudentsResponse implements Response {
   students: [Student]
 }
 
-"payload send when you add or update a student"
-input StudentInput {
-  name: String
-  "if you want to update a student, you need to precise his id"
-  id: UUID
+"payload send when you add a student"
+input AddStudentInput {
+  name: String!
   email: Email!
 }
+
+"payload send when you update a student"
+input UpdateStudentInput {
+  name: String!
+  id: UUID!
+  email: Email!
+}
+

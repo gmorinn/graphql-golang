@@ -62,12 +62,13 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddOrUpdateStudent func(childComplexity int, input model.StudentInput) int
+		AddStudent    func(childComplexity int, input model.AddStudentInput) int
+		UpdateStudent func(childComplexity int, input model.UpdateStudentInput) int
 	}
 
 	Query struct {
 		Student  func(childComplexity int, id mypkg.UUID) int
-		Students func(childComplexity int, limit int) int
+		Students func(childComplexity int, limit int, offset int) int
 	}
 
 	Student struct {
@@ -82,11 +83,12 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	AddOrUpdateStudent(ctx context.Context, input model.StudentInput) (*model.GetStudentResponse, error)
+	AddStudent(ctx context.Context, input model.AddStudentInput) (*model.GetStudentResponse, error)
+	UpdateStudent(ctx context.Context, input model.UpdateStudentInput) (*model.GetStudentResponse, error)
 }
 type QueryResolver interface {
 	Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
-	Students(ctx context.Context, limit int) (*model.GetStudentsResponse, error)
+	Students(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error)
 }
 
 type executableSchema struct {
@@ -146,17 +148,29 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.GetStudentsResponse.Success(childComplexity), true
 
-	case "Mutation.addOrUpdateStudent":
-		if e.complexity.Mutation.AddOrUpdateStudent == nil {
+	case "Mutation.addStudent":
+		if e.complexity.Mutation.AddStudent == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_addOrUpdateStudent_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_addStudent_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.AddOrUpdateStudent(childComplexity, args["input"].(model.StudentInput)), true
+		return e.complexity.Mutation.AddStudent(childComplexity, args["input"].(model.AddStudentInput)), true
+
+	case "Mutation.UpdateStudent":
+		if e.complexity.Mutation.UpdateStudent == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_UpdateStudent_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateStudent(childComplexity, args["input"].(model.UpdateStudentInput)), true
 
 	case "Query.student":
 		if e.complexity.Query.Student == nil {
@@ -180,7 +194,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.Students(childComplexity, args["limit"].(int)), true
+		return e.complexity.Query.Students(childComplexity, args["limit"].(int), args["offset"].(int)), true
 
 	case "Student.created_at":
 		if e.complexity.Student.CreatedAt == nil {
@@ -239,7 +253,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	rc := graphql.GetOperationContext(ctx)
 	ec := executionContext{rc, e}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
-		ec.unmarshalInputStudentInput,
+		ec.unmarshalInputAddStudentInput,
+		ec.unmarshalInputUpdateStudentInput,
 	)
 	first := true
 
@@ -332,17 +347,18 @@ type Query {
   "returns one student by his id precising in the payload"
   student(id:UUID!): GetStudentResponse!
   "returns all students with a limit precising in the payload, need to be admin to access"
-  students(limit: Int!): GetStudentsResponse!
+  students(limit: Int!, offset: Int!): GetStudentsResponse!
 }
 
 type Mutation {
-  addOrUpdateStudent(input: StudentInput!): GetStudentResponse!
+  addStudent(input: AddStudentInput!): GetStudentResponse!
+  UpdateStudent(input: UpdateStudentInput!): GetStudentResponse!
 }
 
 
 "All fields that represent a student"
 type Student {
-  name: String
+  name: String!
   email: Email!
   id: UUID!
   role: UserType!
@@ -367,13 +383,19 @@ type GetStudentsResponse implements Response {
   students: [Student]
 }
 
-"payload send when you add or update a student"
-input StudentInput {
-  name: String
-  "if you want to update a student, you need to precise his id"
-  id: UUID
+"payload send when you add a student"
+input AddStudentInput {
+  name: String!
   email: Email!
 }
+
+"payload send when you update a student"
+input UpdateStudentInput {
+  name: String!
+  id: UUID!
+  email: Email!
+}
+
 `, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -382,13 +404,28 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_Mutation_addOrUpdateStudent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_UpdateStudent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 model.StudentInput
+	var arg0 model.UpdateStudentInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐStudentInput(ctx, tmp)
+		arg0, err = ec.unmarshalNUpdateStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐUpdateStudentInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_addStudent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.AddStudentInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNAddStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐAddStudentInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -439,6 +476,15 @@ func (ec *executionContext) field_Query_students_args(ctx context.Context, rawAr
 		}
 	}
 	args["limit"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["offset"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["offset"] = arg1
 	return args, nil
 }
 
@@ -770,8 +816,8 @@ func (ec *executionContext) fieldContext_GetStudentsResponse_students(ctx contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_addOrUpdateStudent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_addOrUpdateStudent(ctx, field)
+func (ec *executionContext) _Mutation_addStudent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_addStudent(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -784,7 +830,7 @@ func (ec *executionContext) _Mutation_addOrUpdateStudent(ctx context.Context, fi
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AddOrUpdateStudent(rctx, fc.Args["input"].(model.StudentInput))
+		return ec.resolvers.Mutation().AddStudent(rctx, fc.Args["input"].(model.AddStudentInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -801,7 +847,7 @@ func (ec *executionContext) _Mutation_addOrUpdateStudent(ctx context.Context, fi
 	return ec.marshalNGetStudentResponse2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐGetStudentResponse(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_addOrUpdateStudent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_addStudent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -824,7 +870,68 @@ func (ec *executionContext) fieldContext_Mutation_addOrUpdateStudent(ctx context
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_addOrUpdateStudent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_addStudent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_UpdateStudent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_UpdateStudent(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateStudent(rctx, fc.Args["input"].(model.UpdateStudentInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.GetStudentResponse)
+	fc.Result = res
+	return ec.marshalNGetStudentResponse2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐGetStudentResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_UpdateStudent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_GetStudentResponse_success(ctx, field)
+			case "student":
+				return ec.fieldContext_GetStudentResponse_student(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GetStudentResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_UpdateStudent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
 	}
@@ -906,7 +1013,7 @@ func (ec *executionContext) _Query_students(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Students(rctx, fc.Args["limit"].(int))
+		return ec.resolvers.Query().Students(rctx, fc.Args["limit"].(int), fc.Args["offset"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1103,11 +1210,14 @@ func (ec *executionContext) _Student_name(ctx context.Context, field graphql.Col
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Student_name(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -3157,8 +3267,44 @@ func (ec *executionContext) fieldContext___Type_specifiedByURL(ctx context.Conte
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputStudentInput(ctx context.Context, obj interface{}) (model.StudentInput, error) {
-	var it model.StudentInput
+func (ec *executionContext) unmarshalInputAddStudentInput(ctx context.Context, obj interface{}) (model.AddStudentInput, error) {
+	var it model.AddStudentInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "email"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "email":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+			it.Email, err = ec.unmarshalNEmail2graphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateStudentInput(ctx context.Context, obj interface{}) (model.UpdateStudentInput, error) {
+	var it model.UpdateStudentInput
 	asMap := map[string]interface{}{}
 	for k, v := range obj.(map[string]interface{}) {
 		asMap[k] = v
@@ -3175,7 +3321,7 @@ func (ec *executionContext) unmarshalInputStudentInput(ctx context.Context, obj 
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			it.Name, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			it.Name, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3183,7 +3329,7 @@ func (ec *executionContext) unmarshalInputStudentInput(ctx context.Context, obj 
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-			it.ID, err = ec.unmarshalOUUID2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx, v)
+			it.ID, err = ec.unmarshalNUUID2graphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3350,10 +3496,19 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
-		case "addOrUpdateStudent":
+		case "addStudent":
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_addOrUpdateStudent(ctx, field)
+				return ec._Mutation_addStudent(ctx, field)
+			})
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "UpdateStudent":
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_UpdateStudent(ctx, field)
 			})
 
 			if out.Values[i] == graphql.Null {
@@ -3472,6 +3627,9 @@ func (ec *executionContext) _Student(ctx context.Context, sel ast.SelectionSet, 
 
 			out.Values[i] = ec._Student_name(ctx, field, obj)
 
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "email":
 
 			out.Values[i] = ec._Student_email(ctx, field, obj)
@@ -3840,6 +3998,11 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) unmarshalNAddStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐAddStudentInput(ctx context.Context, v interface{}) (model.AddStudentInput, error) {
+	res, err := ec.unmarshalInputAddStudentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -3923,11 +4086,6 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
-func (ec *executionContext) unmarshalNStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐStudentInput(ctx context.Context, v interface{}) (model.StudentInput, error) {
-	res, err := ec.unmarshalInputStudentInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNTime2timeᚐTime(ctx context.Context, v interface{}) (time.Time, error) {
 	res, err := graphql.UnmarshalTime(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -3951,6 +4109,11 @@ func (ec *executionContext) unmarshalNUUID2graphqlᚑgolangᚋgraphᚋmypkgᚐUU
 
 func (ec *executionContext) marshalNUUID2graphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx context.Context, sel ast.SelectionSet, v mypkg.UUID) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) unmarshalNUpdateStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐUpdateStudentInput(ctx context.Context, v interface{}) (model.UpdateStudentInput, error) {
+	res, err := ec.unmarshalInputUpdateStudentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx context.Context, v interface{}) (model.UserType, error) {
@@ -4320,22 +4483,6 @@ func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel
 	}
 	res := graphql.MarshalTime(*v)
 	return res
-}
-
-func (ec *executionContext) unmarshalOUUID2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx context.Context, v interface{}) (*mypkg.UUID, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var res = new(mypkg.UUID)
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOUUID2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx context.Context, sel ast.SelectionSet, v *mypkg.UUID) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return v
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

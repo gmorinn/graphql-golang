@@ -1,9 +1,8 @@
 package main
 
 import (
-	store "graphql-golang/cmd"
+	"graphql-golang/config"
 	"graphql-golang/graph"
-	"graphql-golang/graph/model"
 	"graphql-golang/service"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -15,9 +14,9 @@ import (
 func graphqlHandler() gin.HandlerFunc {
 	// NewExecutableSchema and Config are in the generated.go file
 	// Resolver is in the resolver.go file
+	server := config.NewServer()
 	h := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{
-		StudentService: service.NewStudentService(make(map[string]model.Student)),
-		Server:         store.NewServer(),
+		StudentService: service.NewStudentService(server),
 	}}))
 
 	return func(c *gin.Context) {

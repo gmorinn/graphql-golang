@@ -1,7 +1,6 @@
-package api
+package config
 
 import (
-	"graphql-golang/config"
 	sqlc "graphql-golang/internal"
 
 	"context"
@@ -21,7 +20,7 @@ type Store struct {
 
 type Server struct {
 	Store    *Store
-	Config   *config.API
+	Config   *API
 	cronTask *cron.Cron
 }
 
@@ -52,7 +51,7 @@ func (store *Store) ExecTx(ctx context.Context, fn func(*sqlc.Queries) error) er
 }
 
 func NewServer() *Server {
-	cnf := config.New()
+	cnf := NewConfig()
 	pg, err := sql.Open("postgres", cnf.DatabaseURL)
 	if err != nil {
 		log.Fatalln("Err DB ==> ", err)

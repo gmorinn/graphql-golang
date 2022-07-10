@@ -14,6 +14,12 @@ type Response interface {
 	IsResponse()
 }
 
+// payload send when you add a student
+type AddStudentInput struct {
+	Name  string      `json:"name"`
+	Email mypkg.Email `json:"email"`
+}
+
 // if there is an error, return it or null
 type ErrorResponse struct {
 	Err       string `json:"err"`
@@ -42,7 +48,7 @@ func (GetStudentsResponse) IsResponse() {}
 
 // All fields that represent a student
 type Student struct {
-	Name      *string     `json:"name"`
+	Name      string      `json:"name"`
 	Email     mypkg.Email `json:"email"`
 	ID        mypkg.UUID  `json:"id"`
 	Role      UserType    `json:"role"`
@@ -51,11 +57,10 @@ type Student struct {
 	UpdatedAt time.Time   `json:"updated_at"`
 }
 
-// payload send when you add or update a student
-type StudentInput struct {
-	Name *string `json:"name"`
-	// if you want to update a student, you need to precise his id
-	ID    *mypkg.UUID `json:"id"`
+// payload send when you update a student
+type UpdateStudentInput struct {
+	Name  string      `json:"name"`
+	ID    mypkg.UUID  `json:"id"`
 	Email mypkg.Email `json:"email"`
 }
 

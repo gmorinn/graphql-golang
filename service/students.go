@@ -2,91 +2,172 @@ package service
 
 import (
 	"context"
-	"fmt"
+	config "graphql-golang/config"
 	"graphql-golang/graph/model"
 	"graphql-golang/graph/mypkg"
-	"time"
+	db "graphql-golang/internal"
+	"graphql-golang/utils"
 
 	"github.com/google/uuid"
 )
 
 type IStudentService interface {
-	CreateStudent(ctx context.Context, input *model.StudentInput) (*model.GetStudentResponse, error)
-	UpdateStudent(ctx context.Context, input *model.StudentInput) (*model.GetStudentResponse, error)
-	GetStudents(ctx context.Context, limit int) (*model.GetStudentsResponse, error)
+	CreateStudent(ctx context.Context, input *model.AddStudentInput) (*model.GetStudentResponse, error)
+	UpdateStudent(ctx context.Context, input *model.UpdateStudentInput) (*model.GetStudentResponse, error)
+	GetStudents(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error)
 	GetStudentByID(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
 }
 
 type StudentService struct {
-	StudentStore map[string]model.Student
+	server *config.Server
 }
 
-func NewStudentService(store map[string]model.Student) *StudentService {
+func NewStudentService(server *config.Server) *StudentService {
 	return &StudentService{
-		StudentStore: store,
+		server: server,
 	}
 }
 
-func (s *StudentService) CreateStudent(ctx context.Context, input *model.StudentInput) (*model.GetStudentResponse, error) {
-	var user model.Student
-	nid := uuid.New().String()
-	user.ID = mypkg.UUID(nid)
-	user.Email = input.Email
-	user.Name = input.Name
-	user.Role = "user"
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = time.Now()
-	user.DeletedAt = nil
-	s.StudentStore[nid] = user
-	return &model.GetStudentResponse{
-		Student: &user,
-		Success: true,
-	}, nil
-}
+func (s *StudentService) CreateStudent(ctx context.Context, input *model.AddStudentInput) (*model.GetStudentResponse, error) {
+	var res model.Student
 
-func (s *StudentService) UpdateStudent(ctx context.Context, input *model.StudentInput) (*model.GetStudentResponse, error) {
-	id := *input.ID
-	cs, ok := s.StudentStore[string(id)]
-	var user model.Student = cs
-	if !ok {
-		return nil, fmt.Errorf("user not found")
-	}
-	if input.Name != nil {
-		user.Name = input.Name
-	} else {
-		user.Name = cs.Name
-	}
-	user.UpdatedAt = time.Now()
-	s.StudentStore[string(id)] = user
-	return &model.GetStudentResponse{
-		Student: &user,
-		Success: true,
-	}, nil
-}
+	var err = s.server.Store.ExecTx(ctx, func(q *db.Queries) error {
 
-func (s *StudentService) GetStudents(ctx context.Context, limit int) (*model.GetStudentsResponse, error) {
-	var res model.GetStudentsResponse
-	students := make([]*model.Student, 0)
+		stud, err := q.InsertStudent(ctx, db.InsertStudentParams{
+			Email: string(input.Email),
+			Name:  utils.NullS(input.Name),
+		})
 
-	for i := range s.StudentStore {
-		if len(students) >= limit {
-			break
+		if err != nil {
+			return err
 		}
-		u := s.StudentStore[i]
-		students = append(students, &u)
+
+		res = model.Student{
+			ID:        mypkg.UUID(stud.ID.String()),
+			Email:     mypkg.Email(stud.Email),
+			Name:      stud.Name.String,
+			CreatedAt: stud.CreatedAt,
+			UpdatedAt: stud.UpdatedAt,
+			DeletedAt: &stud.DeletedAt.Time,
+			Role:      model.UserType(stud.Role),
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, utils.ErrorResponse(ctx, "TX_CREATE_STUDENT", err)
 	}
-	res.Students = students
-	res.Success = true
-	return &res, nil
+
+	return &model.GetStudentResponse{
+		Student: &res,
+		Success: true,
+	}, nil
+}
+
+func (s *StudentService) UpdateStudent(ctx context.Context, input *model.UpdateStudentInput) (*model.GetStudentResponse, error) {
+	var res model.Student
+
+	var err = s.server.Store.ExecTx(ctx, func(q *db.Queries) error {
+		id := string(input.ID)
+
+		if err := q.UpdateStudent(ctx, db.UpdateStudentParams{
+			ID: uuid.MustParse(id),
+		}); err != nil {
+			return err
+		}
+
+		stud, err := q.GetStudentByID(ctx, uuid.MustParse(id))
+		if err != nil {
+			return err
+		}
+
+		res = model.Student{
+			ID:        mypkg.UUID(stud.ID.String()),
+			Email:     mypkg.Email(stud.Email),
+			Name:      stud.Name.String,
+			CreatedAt: stud.CreatedAt,
+			UpdatedAt: stud.UpdatedAt,
+			DeletedAt: &stud.DeletedAt.Time,
+			Role:      model.UserType(stud.Role),
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, utils.ErrorResponse(ctx, "TX_UPDATE_STUDENT", err)
+	}
+
+	return &model.GetStudentResponse{
+		Student: &res,
+		Success: true,
+	}, nil
+}
+
+func (s *StudentService) GetStudents(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error) {
+	var res []*model.Student = make([]*model.Student, 0)
+
+	var err = s.server.Store.ExecTx(ctx, func(q *db.Queries) error {
+		studs, err := q.Liststudents(ctx, db.ListstudentsParams{
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, stud := range studs {
+			res = append(res, &model.Student{
+				ID:        mypkg.UUID(stud.ID.String()),
+				Email:     mypkg.Email(stud.Email),
+				Name:      stud.Name.String,
+				CreatedAt: stud.CreatedAt,
+				UpdatedAt: stud.UpdatedAt,
+				DeletedAt: &stud.DeletedAt.Time,
+				Role:      model.UserType(stud.Role),
+			})
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, utils.ErrorResponse(ctx, "TX_GET_STUDENTS", err)
+	}
+
+	return &model.GetStudentsResponse{
+		Students: res,
+		Success:  true,
+	}, nil
 }
 
 func (s *StudentService) GetStudentByID(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error) {
-	var res model.GetStudentResponse
-	student, ok := s.StudentStore[string(id)]
-	if !ok {
-		return nil, fmt.Errorf("user not found")
+	var res model.Student
+
+	var err = s.server.Store.ExecTx(ctx, func(q *db.Queries) error {
+		id := string(id)
+
+		stud, err := q.GetStudentByID(ctx, uuid.MustParse(id))
+		if err != nil {
+			return err
+		}
+
+		res = model.Student{
+			ID:        mypkg.UUID(stud.ID.String()),
+			Email:     mypkg.Email(stud.Email),
+			Name:      stud.Name.String,
+			CreatedAt: stud.CreatedAt,
+			UpdatedAt: stud.UpdatedAt,
+			DeletedAt: &stud.DeletedAt.Time,
+			Role:      model.UserType(stud.Role),
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, utils.ErrorResponse(ctx, "TX_GET_STUDENT_BY_ID", err)
 	}
-	res.Student = &student
-	res.Success = true
-	return &res, nil
+
+	return &model.GetStudentResponse{
+		Student: &res,
+		Success: true,
+	}, nil
 }

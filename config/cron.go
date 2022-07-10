@@ -1,7 +1,6 @@
-package api
+package config
 
 import (
-	"graphql-golang/config"
 	"log"
 	"time"
 
@@ -15,7 +14,7 @@ type Days struct {
 	Sunday   time.Time
 }
 
-func (server *Server) runCron(c **cron.Cron, config *config.API) {
+func (server *Server) runCron(c **cron.Cron, config *API) {
 	// ctx := context.Background()
 	(*c) = cron.New()
 

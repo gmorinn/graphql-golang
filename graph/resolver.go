@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"graphql-golang/cmd/store"
 	"graphql-golang/service"
 )
 
@@ -11,5 +10,4 @@ import (
 
 type Resolver struct {
 	StudentService service.IStudentService
-	Server         *store.Server
 }

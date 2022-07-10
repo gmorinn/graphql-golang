@@ -2,12 +2,14 @@ version: "3.4"
 services:
   golang:
     tty: true
-    image: golang:1.16
+    image: golang:1.18
     volumes:
       - .:/app/src/service/api
     working_dir: /app/src/service/api
     env_file:
       - .env
+    command: bash -c "go install github.com/cosmtrek/air@latest && air -c
+      /app/src/service/api/air.toml ."
     expose:
       - "${API_PORT}"
     ports:

@@ -40,7 +40,7 @@ type Security struct {
 }
 
 // New config api return config
-func New() *API {
+func NewConfig() *API {
 	var config API
 
 	godotenv.Load("../.env")
@@ -70,7 +70,7 @@ func New() *API {
 	config.Security.AccessTokenDuration, _ = getenvInt("API_ACCESS_TOKEN")
 	config.Security.RefreshTokenDuration, _ = getenvInt("API_REFRESH_TOKEN")
 
-	config.DatabaseURL = os.Getenv("DATABASE_URL")
+	config.DatabaseURL = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", config.Database.User, config.Database.Password, config.Database.Host, config.Database.Port, config.Database.Database)
 
 	return &config
 }
