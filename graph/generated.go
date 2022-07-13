@@ -43,6 +43,7 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
+	HasRole func(ctx context.Context, obj interface{}, next graphql.Resolver, role model.UserType) (res interface{}, err error)
 	JwtAuth func(ctx context.Context, obj interface{}, next graphql.Resolver) (res interface{}, err error)
 }
 
@@ -72,6 +73,7 @@ type ComplexityRoot struct {
 		Refresh       func(childComplexity int, refreshToken mypkg.JWT) int
 		Signin        func(childComplexity int, input model.SigninInput) int
 		Signup        func(childComplexity int, input model.SignupInput) int
+		UpdateRole    func(childComplexity int, role model.UserType, id mypkg.UUID) int
 		UpdateStudent func(childComplexity int, input model.UpdateStudentInput) int
 	}
 
@@ -97,6 +99,7 @@ type MutationResolver interface {
 	Signin(ctx context.Context, input model.SigninInput) (*model.JWTResponse, error)
 	Signup(ctx context.Context, input model.SignupInput) (*model.JWTResponse, error)
 	Refresh(ctx context.Context, refreshToken mypkg.JWT) (*model.JWTResponse, error)
+	UpdateRole(ctx context.Context, role model.UserType, id mypkg.UUID) (*model.GetStudentResponse, error)
 }
 type QueryResolver interface {
 	Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
@@ -217,6 +220,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.Signup(childComplexity, args["input"].(model.SignupInput)), true
+
+	case "Mutation.updateRole":
+		if e.complexity.Mutation.UpdateRole == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateRole_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateRole(childComplexity, args["role"].(model.UserType), args["id"].(mypkg.UUID)), true
 
 	case "Mutation.updateStudent":
 		if e.complexity.Mutation.UpdateStudent == nil {
@@ -388,7 +403,7 @@ scalar UUID
 scalar Email
 scalar URL
 scalar JWT
-# directive @hasRole(role: UserType!) on FIELD_DEFINITION
+directive @hasRole(role: UserType!) on FIELD_DEFINITION
 directive @jwtAuth on FIELD_DEFINITION
 
 
@@ -418,7 +433,7 @@ type Query {
   student(id:UUID!): GetStudentResponse!
   "returns all students with a limit precising in the payload, need to be admin to access"
   students(limit: Int!, offset: Int!): GetStudentsResponse!
-
+  "test if the user is connected"
   protected: String! @jwtAuth
 }
 
@@ -430,6 +445,8 @@ type Mutation {
   signup(input: SignupInput!): JWTResponse!
   "use to refresh the access token"
   refresh(refresh_token: JWT!): JWTResponse!
+  "update the user's role"
+  updateRole(role: UserType!, id:UUID!): GetStudentResponse! @hasRole(role: ADMIN) @jwtAuth
 }
 
 type JWTResponse {
@@ -512,6 +529,21 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) dir_hasRole_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.UserType
+	if tmp, ok := rawArgs["role"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
+		arg0, err = ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["role"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_refresh_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -554,6 +586,30 @@ func (ec *executionContext) field_Mutation_signup_args(ctx context.Context, rawA
 		}
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateRole_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.UserType
+	if tmp, ok := rawArgs["role"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
+		arg0, err = ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["role"] = arg0
+	var arg1 mypkg.UUID
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg1, err = ec.unmarshalNUUID2graphqlᚑgolangᚋgraphᚋmypkgᚐUUID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg1
 	return args, nil
 }
 
@@ -1330,6 +1386,97 @@ func (ec *executionContext) fieldContext_Mutation_refresh(ctx context.Context, f
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_refresh_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateRole(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateRole(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().UpdateRole(rctx, fc.Args["role"].(model.UserType), fc.Args["id"].(mypkg.UUID))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "ADMIN")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+		directive2 := func(ctx context.Context) (interface{}, error) {
+			if ec.directives.JwtAuth == nil {
+				return nil, errors.New("directive jwtAuth is not implemented")
+			}
+			return ec.directives.JwtAuth(ctx, nil, directive1)
+		}
+
+		tmp, err := directive2(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*model.GetStudentResponse); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *graphql-golang/graph/model.GetStudentResponse`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.GetStudentResponse)
+	fc.Result = res
+	return ec.marshalNGetStudentResponse2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐGetStudentResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateRole(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_GetStudentResponse_success(ctx, field)
+			case "student":
+				return ec.fieldContext_GetStudentResponse_student(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GetStudentResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateRole_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
 	}
@@ -4119,6 +4266,15 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_refresh(ctx, field)
+			})
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateRole":
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateRole(ctx, field)
 			})
 
 			if out.Values[i] == graphql.Null {

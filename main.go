@@ -23,12 +23,12 @@ func graphqlHandler() gin.HandlerFunc {
 
 	server := config.NewServer()
 
-
 	c := graph.Config{Resolvers: &graph.Resolver{
 		StudentService: service.NewStudentService(server),
 		AuthService:    service.NewAuthService(server),
 	}}
 	c.Directives.JwtAuth = server.JwtAuth
+	c.Directives.HasRole = server.HasRole
 
 	h := handler.NewDefaultServer(graph.NewExecutableSchema(c))
 

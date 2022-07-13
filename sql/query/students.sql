@@ -5,6 +5,12 @@ SET name = $1,
     updated_at = NOW()
 WHERE id = $3;
 
+-- name: UpdateRoleStudent :exec
+UPDATE students
+SET role = $1,
+    updated_at = NOW()
+WHERE id = $2;
+
 -- name: GetStudentByID :one
 SELECT * FROM students
 WHERE id = $1

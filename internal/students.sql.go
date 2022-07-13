@@ -132,6 +132,23 @@ func (q *Queries) Liststudents(ctx context.Context, arg ListstudentsParams) ([]S
 	return items, nil
 }
 
+const updateRoleStudent = `-- name: UpdateRoleStudent :exec
+UPDATE students
+SET role = $1,
+    updated_at = NOW()
+WHERE id = $2
+`
+
+type UpdateRoleStudentParams struct {
+	Role Role      `json:"role"`
+	ID   uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateRoleStudent(ctx context.Context, arg UpdateRoleStudentParams) error {
+	_, err := q.db.ExecContext(ctx, updateRoleStudent, arg.Role, arg.ID)
+	return err
+}
+
 const updateStudent = `-- name: UpdateStudent :exec
 UPDATE students
 SET name = $1,

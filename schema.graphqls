@@ -4,7 +4,7 @@ scalar UUID
 scalar Email
 scalar URL
 scalar JWT
-# directive @hasRole(role: UserType!) on FIELD_DEFINITION
+directive @hasRole(role: UserType!) on FIELD_DEFINITION
 directive @jwtAuth on FIELD_DEFINITION
 
 
@@ -34,7 +34,7 @@ type Query {
   student(id:UUID!): GetStudentResponse!
   "returns all students with a limit precising in the payload, need to be admin to access"
   students(limit: Int!, offset: Int!): GetStudentsResponse!
-
+  "test if the user is connected"
   protected: String! @jwtAuth
 }
 
@@ -46,6 +46,8 @@ type Mutation {
   signup(input: SignupInput!): JWTResponse!
   "use to refresh the access token"
   refresh(refresh_token: JWT!): JWTResponse!
+  "update the user's role"
+  updateRole(role: UserType!, id:UUID!): GetStudentResponse! @hasRole(role: ADMIN) @jwtAuth
 }
 
 type JWTResponse {

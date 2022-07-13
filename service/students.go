@@ -7,6 +7,7 @@ import (
 	"graphql-golang/graph/mypkg"
 	db "graphql-golang/internal"
 	"graphql-golang/utils"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -15,7 +16,7 @@ type IStudentService interface {
 	UpdateStudent(ctx context.Context, input *model.UpdateStudentInput) (*model.GetStudentResponse, error)
 	GetStudents(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error)
 	GetStudentByID(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
-	Protected(ctx context.Context) (string, error)
+	UpdateRole(ctx context.Context, role *model.UserType, id *mypkg.UUID) (*model.GetStudentResponse, error)
 }
 
 type StudentService struct {
@@ -145,6 +146,41 @@ func (s *StudentService) GetStudentByID(ctx context.Context, id mypkg.UUID) (*mo
 	}, nil
 }
 
-func (s *StudentService) Protected(ctx context.Context) (string, error) {
-	return "success", nil
+func (s *StudentService) UpdateRole(ctx context.Context, role *model.UserType, id *mypkg.UUID) (*model.GetStudentResponse, error) {
+	var res model.Student
+
+	var err = s.server.Store.ExecTx(ctx, func(q *db.Queries) error {
+		newRole := *role
+		if err := q.UpdateRoleStudent(ctx, db.UpdateRoleStudentParams{
+			ID:   uuid.MustParse(string(*id)),
+			Role: db.Role(strings.ToLower(newRole.String())),
+		}); err != nil {
+			return err
+		}
+
+		stud, err := q.GetStudentByID(ctx, uuid.MustParse(string(*id)))
+		if err != nil {
+			return err
+		}
+
+		res = model.Student{
+			ID:        mypkg.UUID(stud.ID.String()),
+			Email:     mypkg.Email(stud.Email),
+			Name:      stud.Name.String,
+			CreatedAt: stud.CreatedAt,
+			UpdatedAt: stud.UpdatedAt,
+			DeletedAt: &stud.DeletedAt.Time,
+			Role:      model.UserType(stud.Role),
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, utils.ErrorResponse("TX_UPDATE_ROLE", err)
+	}
+
+	return &model.GetStudentResponse{
+		Student: &res,
+		Success: true,
+	}, nil
 }

@@ -29,6 +29,11 @@ func (r *mutationResolver) Refresh(ctx context.Context, refreshToken mypkg.JWT) 
 	return r.AuthService.RefreshToken(ctx, &refreshToken)
 }
 
+// UpdateRole is the resolver for the updateRole field.
+func (r *mutationResolver) UpdateRole(ctx context.Context, role model.UserType, id mypkg.UUID) (*model.GetStudentResponse, error) {
+	return r.StudentService.UpdateRole(ctx, &role, &id)
+}
+
 // Student is the resolver for the student field.
 func (r *queryResolver) Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error) {
 	return r.StudentService.GetStudentByID(ctx, id)
@@ -41,7 +46,7 @@ func (r *queryResolver) Students(ctx context.Context, limit int, offset int) (*m
 
 // Protected is the resolver for the protected field.
 func (r *queryResolver) Protected(ctx context.Context) (string, error) {
-	return r.StudentService.Protected(ctx)
+	return r.AuthService.Protected(ctx)
 }
 
 // Mutation returns MutationResolver implementation.

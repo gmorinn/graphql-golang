@@ -16,6 +16,7 @@ type IAuthService interface {
 	Signin(ctx context.Context, input *model.SigninInput) (*model.JWTResponse, error)
 	Signup(ctx context.Context, input *model.SignupInput) (*model.JWTResponse, error)
 	RefreshToken(ctx context.Context, refreshToken *mypkg.JWT) (*model.JWTResponse, error)
+	Protected(ctx context.Context) (string, error)
 }
 
 type AuthService struct {
@@ -114,4 +115,8 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken *mypkg.JWT)
 		Success:      true,
 	}
 	return &response, nil
+}
+
+func (s *AuthService) Protected(ctx context.Context) (string, error) {
+	return "success", nil
 }

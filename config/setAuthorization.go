@@ -3,11 +3,12 @@ package config
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
 
+	"graphql-golang/graph/model"
+	db "graphql-golang/internal"
 	sqlc "graphql-golang/internal"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -18,6 +19,11 @@ import (
 
 	"github.com/google/uuid"
 )
+
+type JwtContent struct {
+	ID   uuid.UUID `json:"id"`
+	Role db.Role   `json:"role"`
+}
 
 // storeRefresh store refres_token into database
 func (server *Server) StoreRefresh(ctx context.Context, token string, exp time.Time, userID uuid.UUID) error {
@@ -36,7 +42,6 @@ func (server *Server) GenerateJwtToken(ID uuid.UUID, role string) (string, strin
 		"role": role,
 		"exp":  time.Now().Add(time.Duration((time.Hour * 24) * time.Duration(server.Config.Security.AccessTokenDuration))).Unix(),
 	})
-	log.Println("secret: ", server.Config.Security.Secret)
 	t, err := accessToken.SignedString([]byte(server.Config.Security.Secret))
 	if err != nil {
 		return "", "", time.Now(), fmt.Errorf("ERROR_GENERATE_ACCESS_JWT %v", err)
@@ -82,7 +87,8 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func getUserContext(ctx context.Context) *jwt.Token {
+func getUserContext(ctx context.Context) *JwtContent {
+	var res *JwtContent = nil
 	raw := ctx.Value("jwt")
 	if raw == nil {
 		return nil
@@ -92,18 +98,38 @@ func getUserContext(ctx context.Context) *jwt.Token {
 		return nil
 	}
 	claims := u.Claims.(jwt.MapClaims)
-	_, ok = claims["id"].(string)
+	id, ok := claims["id"].(string)
 	if !ok {
 		return nil
 	}
-	return u
+	role, ok := claims["role"].(string)
+	if !ok {
+		return nil
+	}
+	res = &JwtContent{
+		ID:   uuid.MustParse(id),
+		Role: db.Role(role),
+	}
+	return res
 }
 
 func (server *Server) JwtAuth(ctx context.Context, obj interface{}, next graphql.Resolver) (interface{}, error) {
-	tokenData := getUserContext(ctx)
-	if tokenData == nil {
+	userCtx := getUserContext(ctx)
+
+	if userCtx == nil {
 		return nil, &gqlerror.Error{
 			Message: "Access Denied",
+		}
+	}
+	return next(ctx)
+}
+
+func (server *Server) HasRole(ctx context.Context, obj interface{}, next graphql.Resolver, role model.UserType) (interface{}, error) {
+	userCtx := getUserContext(ctx)
+
+	if userCtx == nil || string(userCtx.Role) != strings.ToLower(role.String()) {
+		return nil, &gqlerror.Error{
+			Message: "Can't access this resource",
 		}
 	}
 

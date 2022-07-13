@@ -25,6 +25,7 @@ type Querier interface {
 	Liststudents(ctx context.Context, arg ListstudentsParams) ([]Student, error)
 	LoginUser(ctx context.Context, arg LoginUserParams) (LoginUserRow, error)
 	Signup(ctx context.Context, arg SignupParams) (Student, error)
+	UpdateRoleStudent(ctx context.Context, arg UpdateRoleStudentParams) error
 	UpdateStudent(ctx context.Context, arg UpdateStudentParams) error
 }
 
