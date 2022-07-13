@@ -29,4 +29,15 @@ CREATE TABLE "refresh_token" (
   "user_id" uuid NOT NULL
 );
 
+CREATE TABLE "files" (
+    "id" uuid PRIMARY KEY DEFAULT (gen_random_uuid()),
+    "created_at" timestamptz NOT NULL DEFAULT (NOW()),
+    "updated_at" timestamptz NOT NULL DEFAULT (NOW()),
+    "deleted_at" timestamptz,
+    "name" text,
+    "url" text,
+    "mime" text,
+    "size" bigint
+);
+
 ALTER TABLE "refresh_token" ADD FOREIGN KEY ("user_id") REFERENCES "students" ("id") ON DELETE CASCADE;

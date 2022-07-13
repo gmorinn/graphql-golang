@@ -7,8 +7,6 @@ scalar JWT
 directive @hasRole(role: UserType!) on FIELD_DEFINITION
 directive @jwtAuth on FIELD_DEFINITION
 
-
-
 enum UserType {
   "User can have access to all data"
   ADMIN
@@ -18,15 +16,8 @@ enum UserType {
   USER
 }
 
-
 interface Response {
   success: Boolean!
-}
-
-"if there is an error, return it or null"
-type ErrorResponse {
-  err: String!
-  error_code: String!
 }
 
 type Query {
@@ -38,6 +29,24 @@ type Query {
   protected: String! @jwtAuth
 }
 
+"The `File` type, represents the response of uploading a file."
+type File implements Response {
+    name: String!
+    size: Int!
+    url: String!
+    success: Boolean!
+}
+
+input UploadInput {
+  "The file to upload"
+  file: Upload!
+  "width of the image if it needs to be resized"
+  width: Int
+  "height of the image if it needs to be resized"
+  height: Int
+}
+
+
 type Mutation {
   updateStudent(input: UpdateStudentInput!): GetStudentResponse!
   "connect a user to the application"
@@ -48,6 +57,8 @@ type Mutation {
   refresh(refresh_token: JWT!): JWTResponse!
   "update the user's role"
   updateRole(role: UserType!, id:UUID!): GetStudentResponse! @hasRole(role: ADMIN) @jwtAuth
+  "upload a file"
+  singleUpload(file: UploadInput!): File!
 }
 
 type JWTResponse {

@@ -48,9 +48,11 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
-	ErrorResponse struct {
-		Err       func(childComplexity int) int
-		ErrorCode func(childComplexity int) int
+	File struct {
+		Name    func(childComplexity int) int
+		Size    func(childComplexity int) int
+		Success func(childComplexity int) int
+		URL     func(childComplexity int) int
 	}
 
 	GetStudentResponse struct {
@@ -73,6 +75,7 @@ type ComplexityRoot struct {
 		Refresh       func(childComplexity int, refreshToken mypkg.JWT) int
 		Signin        func(childComplexity int, input model.SigninInput) int
 		Signup        func(childComplexity int, input model.SignupInput) int
+		SingleUpload  func(childComplexity int, file model.UploadInput) int
 		UpdateRole    func(childComplexity int, role model.UserType, id mypkg.UUID) int
 		UpdateStudent func(childComplexity int, input model.UpdateStudentInput) int
 	}
@@ -100,6 +103,7 @@ type MutationResolver interface {
 	Signup(ctx context.Context, input model.SignupInput) (*model.JWTResponse, error)
 	Refresh(ctx context.Context, refreshToken mypkg.JWT) (*model.JWTResponse, error)
 	UpdateRole(ctx context.Context, role model.UserType, id mypkg.UUID) (*model.GetStudentResponse, error)
+	SingleUpload(ctx context.Context, file model.UploadInput) (*model.File, error)
 }
 type QueryResolver interface {
 	Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
@@ -122,19 +126,33 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	_ = ec
 	switch typeName + "." + field {
 
-	case "ErrorResponse.err":
-		if e.complexity.ErrorResponse.Err == nil {
+	case "File.name":
+		if e.complexity.File.Name == nil {
 			break
 		}
 
-		return e.complexity.ErrorResponse.Err(childComplexity), true
+		return e.complexity.File.Name(childComplexity), true
 
-	case "ErrorResponse.error_code":
-		if e.complexity.ErrorResponse.ErrorCode == nil {
+	case "File.size":
+		if e.complexity.File.Size == nil {
 			break
 		}
 
-		return e.complexity.ErrorResponse.ErrorCode(childComplexity), true
+		return e.complexity.File.Size(childComplexity), true
+
+	case "File.success":
+		if e.complexity.File.Success == nil {
+			break
+		}
+
+		return e.complexity.File.Success(childComplexity), true
+
+	case "File.url":
+		if e.complexity.File.URL == nil {
+			break
+		}
+
+		return e.complexity.File.URL(childComplexity), true
 
 	case "GetStudentResponse.student":
 		if e.complexity.GetStudentResponse.Student == nil {
@@ -220,6 +238,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.Signup(childComplexity, args["input"].(model.SignupInput)), true
+
+	case "Mutation.singleUpload":
+		if e.complexity.Mutation.SingleUpload == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_singleUpload_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SingleUpload(childComplexity, args["file"].(model.UploadInput)), true
 
 	case "Mutation.updateRole":
 		if e.complexity.Mutation.UpdateRole == nil {
@@ -337,6 +367,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputSigninInput,
 		ec.unmarshalInputSignupInput,
 		ec.unmarshalInputUpdateStudentInput,
+		ec.unmarshalInputUploadInput,
 	)
 	first := true
 
@@ -406,8 +437,6 @@ scalar JWT
 directive @hasRole(role: UserType!) on FIELD_DEFINITION
 directive @jwtAuth on FIELD_DEFINITION
 
-
-
 enum UserType {
   "User can have access to all data"
   ADMIN
@@ -417,15 +446,8 @@ enum UserType {
   USER
 }
 
-
 interface Response {
   success: Boolean!
-}
-
-"if there is an error, return it or null"
-type ErrorResponse {
-  err: String!
-  error_code: String!
 }
 
 type Query {
@@ -437,6 +459,24 @@ type Query {
   protected: String! @jwtAuth
 }
 
+"The ` + "`" + `File` + "`" + ` type, represents the response of uploading a file."
+type File implements Response {
+    name: String!
+    size: Int!
+    url: String!
+    success: Boolean!
+}
+
+input UploadInput {
+  "The file to upload"
+  file: Upload!
+  "width of the image if it needs to be resized"
+  width: Int
+  "height of the image if it needs to be resized"
+  height: Int
+}
+
+
 type Mutation {
   updateStudent(input: UpdateStudentInput!): GetStudentResponse!
   "connect a user to the application"
@@ -447,6 +487,8 @@ type Mutation {
   refresh(refresh_token: JWT!): JWTResponse!
   "update the user's role"
   updateRole(role: UserType!, id:UUID!): GetStudentResponse! @hasRole(role: ADMIN) @jwtAuth
+  "upload a file"
+  singleUpload(file: UploadInput!): File!
 }
 
 type JWTResponse {
@@ -589,6 +631,21 @@ func (ec *executionContext) field_Mutation_signup_args(ctx context.Context, rawA
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_singleUpload_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.UploadInput
+	if tmp, ok := rawArgs["file"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
+		arg0, err = ec.unmarshalNUploadInput2graphqlᚑgolangᚋgraphᚋmodelᚐUploadInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["file"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateRole_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -720,8 +777,8 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _ErrorResponse_err(ctx context.Context, field graphql.CollectedField, obj *model.ErrorResponse) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ErrorResponse_err(ctx, field)
+func (ec *executionContext) _File_name(ctx context.Context, field graphql.CollectedField, obj *model.File) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_File_name(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -734,7 +791,7 @@ func (ec *executionContext) _ErrorResponse_err(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Err, nil
+		return obj.Name, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -751,9 +808,9 @@ func (ec *executionContext) _ErrorResponse_err(ctx context.Context, field graphq
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_ErrorResponse_err(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_File_name(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "ErrorResponse",
+		Object:     "File",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -764,8 +821,8 @@ func (ec *executionContext) fieldContext_ErrorResponse_err(ctx context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _ErrorResponse_error_code(ctx context.Context, field graphql.CollectedField, obj *model.ErrorResponse) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ErrorResponse_error_code(ctx, field)
+func (ec *executionContext) _File_size(ctx context.Context, field graphql.CollectedField, obj *model.File) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_File_size(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -778,7 +835,51 @@ func (ec *executionContext) _ErrorResponse_error_code(ctx context.Context, field
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ErrorCode, nil
+		return obj.Size, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_File_size(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "File",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _File_url(ctx context.Context, field graphql.CollectedField, obj *model.File) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_File_url(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.URL, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -795,14 +896,58 @@ func (ec *executionContext) _ErrorResponse_error_code(ctx context.Context, field
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_ErrorResponse_error_code(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_File_url(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "ErrorResponse",
+		Object:     "File",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _File_success(ctx context.Context, field graphql.CollectedField, obj *model.File) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_File_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_File_success(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "File",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1477,6 +1622,71 @@ func (ec *executionContext) fieldContext_Mutation_updateRole(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateRole_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_singleUpload(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_singleUpload(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SingleUpload(rctx, fc.Args["file"].(model.UploadInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.File)
+	fc.Result = res
+	return ec.marshalNFile2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐFile(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_singleUpload(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_File_name(ctx, field)
+			case "size":
+				return ec.fieldContext_File_size(ctx, field)
+			case "url":
+				return ec.fieldContext_File_url(ctx, field)
+			case "success":
+				return ec.fieldContext_File_success(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_singleUpload_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
 	}
@@ -4044,6 +4254,50 @@ func (ec *executionContext) unmarshalInputUpdateStudentInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUploadInput(ctx context.Context, obj interface{}) (model.UploadInput, error) {
+	var it model.UploadInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"file", "width", "height"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "file":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
+			it.File, err = ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "width":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("width"))
+			it.Width, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "height":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("height"))
+			it.Height, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -4052,6 +4306,13 @@ func (ec *executionContext) _Response(ctx context.Context, sel ast.SelectionSet,
 	switch obj := (obj).(type) {
 	case nil:
 		return graphql.Null
+	case model.File:
+		return ec._File(ctx, sel, &obj)
+	case *model.File:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._File(ctx, sel, obj)
 	case model.GetStudentResponse:
 		return ec._GetStudentResponse(ctx, sel, &obj)
 	case *model.GetStudentResponse:
@@ -4075,26 +4336,40 @@ func (ec *executionContext) _Response(ctx context.Context, sel ast.SelectionSet,
 
 // region    **************************** object.gotpl ****************************
 
-var errorResponseImplementors = []string{"ErrorResponse"}
+var fileImplementors = []string{"File", "Response"}
 
-func (ec *executionContext) _ErrorResponse(ctx context.Context, sel ast.SelectionSet, obj *model.ErrorResponse) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, errorResponseImplementors)
+func (ec *executionContext) _File(ctx context.Context, sel ast.SelectionSet, obj *model.File) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, fileImplementors)
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("ErrorResponse")
-		case "err":
+			out.Values[i] = graphql.MarshalString("File")
+		case "name":
 
-			out.Values[i] = ec._ErrorResponse_err(ctx, field, obj)
+			out.Values[i] = ec._File_name(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "error_code":
+		case "size":
 
-			out.Values[i] = ec._ErrorResponse_error_code(ctx, field, obj)
+			out.Values[i] = ec._File_size(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "url":
+
+			out.Values[i] = ec._File_url(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "success":
+
+			out.Values[i] = ec._File_success(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
 				invalids++
@@ -4275,6 +4550,15 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateRole(ctx, field)
+			})
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "singleUpload":
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_singleUpload(ctx, field)
 			})
 
 			if out.Values[i] == graphql.Null {
@@ -4812,6 +5096,20 @@ func (ec *executionContext) marshalNEmail2graphqlᚑgolangᚋgraphᚋmypkgᚐEma
 	return v
 }
 
+func (ec *executionContext) marshalNFile2graphqlᚑgolangᚋgraphᚋmodelᚐFile(ctx context.Context, sel ast.SelectionSet, v model.File) graphql.Marshaler {
+	return ec._File(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFile2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐFile(ctx context.Context, sel ast.SelectionSet, v *model.File) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._File(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNGetStudentResponse2graphqlᚑgolangᚋgraphᚋmodelᚐGetStudentResponse(ctx context.Context, sel ast.SelectionSet, v model.GetStudentResponse) graphql.Marshaler {
 	return ec._GetStudentResponse(ctx, sel, &v)
 }
@@ -4931,6 +5229,26 @@ func (ec *executionContext) marshalNUUID2graphqlᚑgolangᚋgraphᚋmypkgᚐUUID
 
 func (ec *executionContext) unmarshalNUpdateStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐUpdateStudentInput(ctx context.Context, v interface{}) (model.UpdateStudentInput, error) {
 	res, err := ec.unmarshalInputUpdateStudentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, v interface{}) (graphql.Upload, error) {
+	res, err := graphql.UnmarshalUpload(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, sel ast.SelectionSet, v graphql.Upload) graphql.Marshaler {
+	res := graphql.MarshalUpload(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNUploadInput2graphqlᚑgolangᚋgraphᚋmodelᚐUploadInput(ctx context.Context, v interface{}) (model.UploadInput, error) {
+	res, err := ec.unmarshalInputUploadInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -5237,6 +5555,22 @@ func (ec *executionContext) marshalOEmail2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐ
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	res := graphql.MarshalInt(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {

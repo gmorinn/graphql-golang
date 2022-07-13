@@ -34,6 +34,11 @@ func (r *mutationResolver) UpdateRole(ctx context.Context, role model.UserType, 
 	return r.StudentService.UpdateRole(ctx, &role, &id)
 }
 
+// SingleUpload is the resolver for the singleUpload field.
+func (r *mutationResolver) SingleUpload(ctx context.Context, file model.UploadInput) (*model.File, error) {
+	return r.FileService.UploadSingleFile(ctx, &file)
+}
+
 // Student is the resolver for the student field.
 func (r *queryResolver) Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error) {
 	return r.StudentService.GetStudentByID(ctx, id)

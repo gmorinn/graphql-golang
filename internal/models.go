@@ -32,6 +32,17 @@ func (e *Role) Scan(src interface{}) error {
 	return nil
 }
 
+type File struct {
+	ID        uuid.UUID      `json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt sql.NullTime   `json:"deleted_at"`
+	Name      sql.NullString `json:"name"`
+	Url       sql.NullString `json:"url"`
+	Mime      sql.NullString `json:"mime"`
+	Size      sql.NullInt64  `json:"size"`
+}
+
 type RefreshToken struct {
 	ID        uuid.UUID    `json:"id"`
 	CreatedAt time.Time    `json:"created_at"`

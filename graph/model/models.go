@@ -8,6 +8,8 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/99designs/gqlgen/graphql"
 )
 
 type Response interface {
@@ -22,11 +24,15 @@ type AddStudentInput struct {
 	Email mypkg.Email `json:"email"`
 }
 
-// if there is an error, return it or null
-type ErrorResponse struct {
-	Err       string `json:"err"`
-	ErrorCode string `json:"error_code"`
+// The `File` type, represents the response of uploading a file.
+type File struct {
+	Name    string `json:"name"`
+	Size    int    `json:"size"`
+	URL     string `json:"url"`
+	Success bool   `json:"success"`
 }
+
+func (File) IsResponse() {}
 
 // Response when you get a student
 type GetStudentResponse struct {
@@ -94,6 +100,15 @@ type UpdateStudentInput struct {
 	ID mypkg.UUID `json:"id"`
 	// email of the student, change the email of the student or stay the same if not precised
 	Email *mypkg.Email `json:"email"`
+}
+
+type UploadInput struct {
+	// The file to upload
+	File graphql.Upload `json:"file"`
+	// width of the image if it needs to be resized
+	Width *int `json:"width"`
+	// height of the image if it needs to be resized
+	Height *int `json:"height"`
 }
 
 type UserType string

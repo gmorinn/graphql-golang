@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
@@ -26,11 +27,17 @@ func graphqlHandler() gin.HandlerFunc {
 	c := graph.Config{Resolvers: &graph.Resolver{
 		StudentService: service.NewStudentService(server),
 		AuthService:    service.NewAuthService(server),
+		FileService:    service.NewFileService(server),
 	}}
 	c.Directives.JwtAuth = server.JwtAuth
 	c.Directives.HasRole = server.HasRole
 
 	h := handler.NewDefaultServer(graph.NewExecutableSchema(c))
+
+	h.AddTransport(transport.MultipartForm{
+		MaxMemory:     50000,
+		MaxUploadSize: 50000,
+	})
 
 	return func(c *gin.Context) {
 		h.ServeHTTP(c.Writer, c.Request)

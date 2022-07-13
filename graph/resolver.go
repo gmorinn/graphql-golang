@@ -11,4 +11,5 @@ import (
 type Resolver struct {
 	StudentService service.IStudentService
 	AuthService    service.IAuthService
+	FileService    service.IFileService
 }

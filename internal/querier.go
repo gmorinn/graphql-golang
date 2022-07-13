@@ -6,6 +6,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -13,10 +14,13 @@ import (
 type Querier interface {
 	CheckEmailExist(ctx context.Context, email string) (bool, error)
 	CountStudent(ctx context.Context) (int64, error)
+	CreateFile(ctx context.Context, arg CreateFileParams) (CreateFileRow, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
+	DeleteFile(ctx context.Context, url sql.NullString) error
 	DeleteOldRefreshToken(ctx context.Context) error
 	DeleteRefreshToken(ctx context.Context, id uuid.UUID) error
 	DeleteStudentByID(ctx context.Context, id uuid.UUID) error
+	GetFileByURL(ctx context.Context, url sql.NullString) (File, error)
 	GetOldRefreshToken(ctx context.Context) (RefreshToken, error)
 	GetRefreshToken(ctx context.Context, token string) (GetRefreshTokenRow, error)
 	GetStudentByID(ctx context.Context, id uuid.UUID) (Student, error)
