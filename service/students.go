@@ -12,10 +12,10 @@ import (
 )
 
 type IStudentService interface {
-	CreateStudent(ctx context.Context, input *model.AddStudentInput) (*model.GetStudentResponse, error)
 	UpdateStudent(ctx context.Context, input *model.UpdateStudentInput) (*model.GetStudentResponse, error)
 	GetStudents(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error)
 	GetStudentByID(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
+	Protected(ctx context.Context) (string, error)
 }
 
 type StudentService struct {
@@ -28,55 +28,28 @@ func NewStudentService(server *config.Server) *StudentService {
 	}
 }
 
-func (s *StudentService) CreateStudent(ctx context.Context, input *model.AddStudentInput) (*model.GetStudentResponse, error) {
-	var res model.Student
-
-	var err = s.server.Store.ExecTx(ctx, func(q *db.Queries) error {
-
-		stud, err := q.InsertStudent(ctx, db.InsertStudentParams{
-			Email: string(input.Email),
-			Name:  utils.NullS(input.Name),
-		})
-
-		if err != nil {
-			return err
-		}
-
-		res = model.Student{
-			ID:        mypkg.UUID(stud.ID.String()),
-			Email:     mypkg.Email(stud.Email),
-			Name:      stud.Name.String,
-			CreatedAt: stud.CreatedAt,
-			UpdatedAt: stud.UpdatedAt,
-			DeletedAt: &stud.DeletedAt.Time,
-			Role:      model.UserType(stud.Role),
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, utils.ErrorResponse(ctx, "TX_CREATE_STUDENT", err)
-	}
-
-	return &model.GetStudentResponse{
-		Student: &res,
-		Success: true,
-	}, nil
-}
-
 func (s *StudentService) UpdateStudent(ctx context.Context, input *model.UpdateStudentInput) (*model.GetStudentResponse, error) {
 	var res model.Student
 
 	var err = s.server.Store.ExecTx(ctx, func(q *db.Queries) error {
 		id := string(input.ID)
 
+		stud, err := q.GetStudentByID(ctx, uuid.MustParse(id))
+		if err != nil {
+			return err
+		}
+
+		inputEmail := string(*input.Email)
+
 		if err := q.UpdateStudent(ctx, db.UpdateStudentParams{
-			ID: uuid.MustParse(id),
+			ID:    uuid.MustParse(id),
+			Email: utils.UpdateString(&stud.Email, &inputEmail),
+			Name:  utils.NullS(utils.UpdateString(&stud.Name.String, input.Name)),
 		}); err != nil {
 			return err
 		}
 
-		stud, err := q.GetStudentByID(ctx, uuid.MustParse(id))
+		stud, err = q.GetStudentByID(ctx, uuid.MustParse(id))
 		if err != nil {
 			return err
 		}
@@ -94,7 +67,7 @@ func (s *StudentService) UpdateStudent(ctx context.Context, input *model.UpdateS
 	})
 
 	if err != nil {
-		return nil, utils.ErrorResponse(ctx, "TX_UPDATE_STUDENT", err)
+		return nil, utils.ErrorResponse("TX_UPDATE_STUDENT", err)
 	}
 
 	return &model.GetStudentResponse{
@@ -130,7 +103,7 @@ func (s *StudentService) GetStudents(ctx context.Context, limit int, offset int)
 	})
 
 	if err != nil {
-		return nil, utils.ErrorResponse(ctx, "TX_GET_STUDENTS", err)
+		return nil, utils.ErrorResponse("TX_GET_STUDENTS", err)
 	}
 
 	return &model.GetStudentsResponse{
@@ -163,11 +136,15 @@ func (s *StudentService) GetStudentByID(ctx context.Context, id mypkg.UUID) (*mo
 	})
 
 	if err != nil {
-		return nil, utils.ErrorResponse(ctx, "TX_GET_STUDENT_BY_ID", err)
+		return nil, utils.ErrorResponse("TX_GET_STUDENT_BY_ID", err)
 	}
 
 	return &model.GetStudentResponse{
 		Student: &res,
 		Success: true,
 	}, nil
+}
+
+func (s *StudentService) Protected(ctx context.Context) (string, error) {
+	return "success", nil
 }

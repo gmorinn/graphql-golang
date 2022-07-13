@@ -11,11 +11,20 @@ import (
 )
 
 type Querier interface {
+	CheckEmailExist(ctx context.Context, email string) (bool, error)
 	CountStudent(ctx context.Context) (int64, error)
+	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
+	DeleteOldRefreshToken(ctx context.Context) error
+	DeleteRefreshToken(ctx context.Context, id uuid.UUID) error
 	DeleteStudentByID(ctx context.Context, id uuid.UUID) error
+	GetOldRefreshToken(ctx context.Context) (RefreshToken, error)
+	GetRefreshToken(ctx context.Context, token string) (GetRefreshTokenRow, error)
 	GetStudentByID(ctx context.Context, id uuid.UUID) (Student, error)
 	InsertStudent(ctx context.Context, arg InsertStudentParams) (Student, error)
+	ListRefreshTokenByUserID(ctx context.Context, arg ListRefreshTokenByUserIDParams) ([]RefreshToken, error)
 	Liststudents(ctx context.Context, arg ListstudentsParams) ([]Student, error)
+	LoginUser(ctx context.Context, arg LoginUserParams) (LoginUserRow, error)
+	Signup(ctx context.Context, arg SignupParams) (Student, error)
 	UpdateStudent(ctx context.Context, arg UpdateStudentParams) error
 }
 

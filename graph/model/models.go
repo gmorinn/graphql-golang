@@ -16,7 +16,9 @@ type Response interface {
 
 // payload send when you add a student
 type AddStudentInput struct {
-	Name  string      `json:"name"`
+	// name of the student (required)
+	Name string `json:"name"`
+	// email of the student (required)
 	Email mypkg.Email `json:"email"`
 }
 
@@ -46,6 +48,33 @@ type GetStudentsResponse struct {
 
 func (GetStudentsResponse) IsResponse() {}
 
+type JWTResponse struct {
+	// jwt token for user to authenticate, contains user id, role and expiry
+	AccessToken mypkg.JWT `json:"access_token"`
+	// use to refresh the access token
+	RefreshToken mypkg.JWT `json:"refresh_token"`
+	// true if the user can connect or false if not
+	Success bool `json:"success"`
+}
+
+type SigninInput struct {
+	// email of the user
+	Email mypkg.Email `json:"email"`
+	// password of the user
+	Password string `json:"password"`
+}
+
+type SignupInput struct {
+	// email of the user
+	Email mypkg.Email `json:"email"`
+	// password of the user
+	Password string `json:"password"`
+	// confirm password of the user
+	ConfirmPassword string `json:"confirm_password"`
+	// name of the user
+	Name string `json:"name"`
+}
+
 // All fields that represent a student
 type Student struct {
 	Name      string      `json:"name"`
@@ -59,9 +88,12 @@ type Student struct {
 
 // payload send when you update a student
 type UpdateStudentInput struct {
-	Name  string      `json:"name"`
-	ID    mypkg.UUID  `json:"id"`
-	Email mypkg.Email `json:"email"`
+	// name of the student, change the name of the student or stay the same if not precised
+	Name *string `json:"name"`
+	// id of the student (mandatory)
+	ID mypkg.UUID `json:"id"`
+	// email of the student, change the email of the student or stay the same if not precised
+	Email *mypkg.Email `json:"email"`
 }
 
 type UserType string

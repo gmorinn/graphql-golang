@@ -5,8 +5,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-
-	"github.com/joho/godotenv"
 )
 
 // API represent api
@@ -42,8 +40,6 @@ type Security struct {
 // New config api return config
 func NewConfig() *API {
 	var config API
-
-	godotenv.Load("../.env")
 
 	config.Mode = os.Getenv("ENV")
 	config.Domain = os.Getenv("API_DOMAIN")

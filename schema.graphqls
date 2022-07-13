@@ -5,6 +5,9 @@ scalar Email
 scalar URL
 scalar JWT
 # directive @hasRole(role: UserType!) on FIELD_DEFINITION
+directive @jwtAuth on FIELD_DEFINITION
+
+
 
 enum UserType {
   "User can have access to all data"
@@ -31,13 +34,46 @@ type Query {
   student(id:UUID!): GetStudentResponse!
   "returns all students with a limit precising in the payload, need to be admin to access"
   students(limit: Int!, offset: Int!): GetStudentsResponse!
+
+  protected: String! @jwtAuth
 }
 
 type Mutation {
-  addStudent(input: AddStudentInput!): GetStudentResponse!
-  UpdateStudent(input: UpdateStudentInput!): GetStudentResponse!
+  updateStudent(input: UpdateStudentInput!): GetStudentResponse!
+  "connect a user to the application"
+  signin(input: SigninInput!): JWTResponse!
+  "create a new user"
+  signup(input: SignupInput!): JWTResponse!
+  "use to refresh the access token"
+  refresh(refresh_token: JWT!): JWTResponse!
 }
 
+type JWTResponse {
+  "jwt token for user to authenticate, contains user id, role and expiry"
+  access_token: JWT!
+  "use to refresh the access token"
+  refresh_token: JWT!
+  "true if the user can connect or false if not"
+  success: Boolean!
+}
+
+input SigninInput {
+  "email of the user"
+  email: Email!
+  "password of the user"
+  password: String!
+}
+
+input SignupInput {
+  "email of the user"
+  email: Email!
+  "password of the user"
+  password: String!
+  "confirm password of the user"
+  confirm_password: String!
+  "name of the user"
+  name: String!
+}
 
 "All fields that represent a student"
 type Student {
@@ -68,14 +104,19 @@ type GetStudentsResponse implements Response {
 
 "payload send when you add a student"
 input AddStudentInput {
+  "name of the student (required)"
   name: String!
+  "email of the student (required)"
   email: Email!
 }
 
 "payload send when you update a student"
 input UpdateStudentInput {
-  name: String!
+  "name of the student, change the name of the student or stay the same if not precised"
+  name: String
+  "id of the student (mandatory)"
   id: UUID!
-  email: Email!
+  "email of the student, change the email of the student or stay the same if not precised"
+  email: Email
 }
 

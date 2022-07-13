@@ -39,7 +39,7 @@ func (q *Queries) DeleteStudentByID(ctx context.Context, id uuid.UUID) error {
 }
 
 const getStudentByID = `-- name: GetStudentByID :one
-SELECT id, created_at, updated_at, deleted_at, email, name, role FROM students
+SELECT id, created_at, updated_at, deleted_at, email, password, name, role FROM students
 WHERE id = $1
 AND deleted_at IS NULL
 LIMIT 1
@@ -54,6 +54,7 @@ func (q *Queries) GetStudentByID(ctx context.Context, id uuid.UUID) (Student, er
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.Email,
+		&i.Password,
 		&i.Name,
 		&i.Role,
 	)
@@ -63,7 +64,7 @@ func (q *Queries) GetStudentByID(ctx context.Context, id uuid.UUID) (Student, er
 const insertStudent = `-- name: InsertStudent :one
 INSERT INTO students (email, name)
 VALUES ($1, $2)
-RETURNING id, created_at, updated_at, deleted_at, email, name, role
+RETURNING id, created_at, updated_at, deleted_at, email, password, name, role
 `
 
 type InsertStudentParams struct {
@@ -80,6 +81,7 @@ func (q *Queries) InsertStudent(ctx context.Context, arg InsertStudentParams) (S
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.Email,
+		&i.Password,
 		&i.Name,
 		&i.Role,
 	)
@@ -87,7 +89,7 @@ func (q *Queries) InsertStudent(ctx context.Context, arg InsertStudentParams) (S
 }
 
 const liststudents = `-- name: Liststudents :many
-SELECT id, created_at, updated_at, deleted_at, email, name, role FROM students
+SELECT id, created_at, updated_at, deleted_at, email, password, name, role FROM students
 WHERE deleted_at IS NULL
 ORDER BY name
 LIMIT $1 OFFSET $2
@@ -113,6 +115,7 @@ func (q *Queries) Liststudents(ctx context.Context, arg ListstudentsParams) ([]S
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.Email,
+			&i.Password,
 			&i.Name,
 			&i.Role,
 		); err != nil {

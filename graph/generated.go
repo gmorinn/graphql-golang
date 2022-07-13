@@ -43,6 +43,7 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
+	JwtAuth func(ctx context.Context, obj interface{}, next graphql.Resolver) (res interface{}, err error)
 }
 
 type ComplexityRoot struct {
@@ -61,14 +62,23 @@ type ComplexityRoot struct {
 		Success  func(childComplexity int) int
 	}
 
+	JWTResponse struct {
+		AccessToken  func(childComplexity int) int
+		RefreshToken func(childComplexity int) int
+		Success      func(childComplexity int) int
+	}
+
 	Mutation struct {
-		AddStudent    func(childComplexity int, input model.AddStudentInput) int
+		Refresh       func(childComplexity int, refreshToken mypkg.JWT) int
+		Signin        func(childComplexity int, input model.SigninInput) int
+		Signup        func(childComplexity int, input model.SignupInput) int
 		UpdateStudent func(childComplexity int, input model.UpdateStudentInput) int
 	}
 
 	Query struct {
-		Student  func(childComplexity int, id mypkg.UUID) int
-		Students func(childComplexity int, limit int, offset int) int
+		Protected func(childComplexity int) int
+		Student   func(childComplexity int, id mypkg.UUID) int
+		Students  func(childComplexity int, limit int, offset int) int
 	}
 
 	Student struct {
@@ -83,12 +93,15 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	AddStudent(ctx context.Context, input model.AddStudentInput) (*model.GetStudentResponse, error)
 	UpdateStudent(ctx context.Context, input model.UpdateStudentInput) (*model.GetStudentResponse, error)
+	Signin(ctx context.Context, input model.SigninInput) (*model.JWTResponse, error)
+	Signup(ctx context.Context, input model.SignupInput) (*model.JWTResponse, error)
+	Refresh(ctx context.Context, refreshToken mypkg.JWT) (*model.JWTResponse, error)
 }
 type QueryResolver interface {
 	Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
 	Students(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error)
+	Protected(ctx context.Context) (string, error)
 }
 
 type executableSchema struct {
@@ -148,29 +161,81 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.GetStudentsResponse.Success(childComplexity), true
 
-	case "Mutation.addStudent":
-		if e.complexity.Mutation.AddStudent == nil {
+	case "JWTResponse.access_token":
+		if e.complexity.JWTResponse.AccessToken == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_addStudent_args(context.TODO(), rawArgs)
+		return e.complexity.JWTResponse.AccessToken(childComplexity), true
+
+	case "JWTResponse.refresh_token":
+		if e.complexity.JWTResponse.RefreshToken == nil {
+			break
+		}
+
+		return e.complexity.JWTResponse.RefreshToken(childComplexity), true
+
+	case "JWTResponse.success":
+		if e.complexity.JWTResponse.Success == nil {
+			break
+		}
+
+		return e.complexity.JWTResponse.Success(childComplexity), true
+
+	case "Mutation.refresh":
+		if e.complexity.Mutation.Refresh == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_refresh_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.AddStudent(childComplexity, args["input"].(model.AddStudentInput)), true
+		return e.complexity.Mutation.Refresh(childComplexity, args["refresh_token"].(mypkg.JWT)), true
 
-	case "Mutation.UpdateStudent":
+	case "Mutation.signin":
+		if e.complexity.Mutation.Signin == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_signin_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.Signin(childComplexity, args["input"].(model.SigninInput)), true
+
+	case "Mutation.signup":
+		if e.complexity.Mutation.Signup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_signup_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.Signup(childComplexity, args["input"].(model.SignupInput)), true
+
+	case "Mutation.updateStudent":
 		if e.complexity.Mutation.UpdateStudent == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_UpdateStudent_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_updateStudent_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
 		return e.complexity.Mutation.UpdateStudent(childComplexity, args["input"].(model.UpdateStudentInput)), true
+
+	case "Query.protected":
+		if e.complexity.Query.Protected == nil {
+			break
+		}
+
+		return e.complexity.Query.Protected(childComplexity), true
 
 	case "Query.student":
 		if e.complexity.Query.Student == nil {
@@ -254,6 +319,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{rc, e}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputAddStudentInput,
+		ec.unmarshalInputSigninInput,
+		ec.unmarshalInputSignupInput,
 		ec.unmarshalInputUpdateStudentInput,
 	)
 	first := true
@@ -322,6 +389,9 @@ scalar Email
 scalar URL
 scalar JWT
 # directive @hasRole(role: UserType!) on FIELD_DEFINITION
+directive @jwtAuth on FIELD_DEFINITION
+
+
 
 enum UserType {
   "User can have access to all data"
@@ -348,13 +418,46 @@ type Query {
   student(id:UUID!): GetStudentResponse!
   "returns all students with a limit precising in the payload, need to be admin to access"
   students(limit: Int!, offset: Int!): GetStudentsResponse!
+
+  protected: String! @jwtAuth
 }
 
 type Mutation {
-  addStudent(input: AddStudentInput!): GetStudentResponse!
-  UpdateStudent(input: UpdateStudentInput!): GetStudentResponse!
+  updateStudent(input: UpdateStudentInput!): GetStudentResponse!
+  "connect a user to the application"
+  signin(input: SigninInput!): JWTResponse!
+  "create a new user"
+  signup(input: SignupInput!): JWTResponse!
+  "use to refresh the access token"
+  refresh(refresh_token: JWT!): JWTResponse!
 }
 
+type JWTResponse {
+  "jwt token for user to authenticate, contains user id, role and expiry"
+  access_token: JWT!
+  "use to refresh the access token"
+  refresh_token: JWT!
+  "true if the user can connect or false if not"
+  success: Boolean!
+}
+
+input SigninInput {
+  "email of the user"
+  email: Email!
+  "password of the user"
+  password: String!
+}
+
+input SignupInput {
+  "email of the user"
+  email: Email!
+  "password of the user"
+  password: String!
+  "confirm password of the user"
+  confirm_password: String!
+  "name of the user"
+  name: String!
+}
 
 "All fields that represent a student"
 type Student {
@@ -385,15 +488,20 @@ type GetStudentsResponse implements Response {
 
 "payload send when you add a student"
 input AddStudentInput {
+  "name of the student (required)"
   name: String!
+  "email of the student (required)"
   email: Email!
 }
 
 "payload send when you update a student"
 input UpdateStudentInput {
-  name: String!
+  "name of the student, change the name of the student or stay the same if not precised"
+  name: String
+  "id of the student (mandatory)"
   id: UUID!
-  email: Email!
+  "email of the student, change the email of the student or stay the same if not precised"
+  email: Email
 }
 
 `, BuiltIn: false},
@@ -404,13 +512,28 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_Mutation_UpdateStudent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_refresh_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 model.UpdateStudentInput
+	var arg0 mypkg.JWT
+	if tmp, ok := rawArgs["refresh_token"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("refresh_token"))
+		arg0, err = ec.unmarshalNJWT2graphqlᚑgolangᚋgraphᚋmypkgᚐJWT(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["refresh_token"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_signin_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.SigninInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNUpdateStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐUpdateStudentInput(ctx, tmp)
+		arg0, err = ec.unmarshalNSigninInput2graphqlᚑgolangᚋgraphᚋmodelᚐSigninInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -419,13 +542,28 @@ func (ec *executionContext) field_Mutation_UpdateStudent_args(ctx context.Contex
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_addStudent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_signup_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 model.AddStudentInput
+	var arg0 model.SignupInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNAddStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐAddStudentInput(ctx, tmp)
+		arg0, err = ec.unmarshalNSignupInput2graphqlᚑgolangᚋgraphᚋmodelᚐSignupInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateStudent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.UpdateStudentInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNUpdateStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐUpdateStudentInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -816,8 +954,8 @@ func (ec *executionContext) fieldContext_GetStudentsResponse_students(ctx contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_addStudent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_addStudent(ctx, field)
+func (ec *executionContext) _JWTResponse_access_token(ctx context.Context, field graphql.CollectedField, obj *model.JWTResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JWTResponse_access_token(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -830,7 +968,7 @@ func (ec *executionContext) _Mutation_addStudent(ctx context.Context, field grap
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AddStudent(rctx, fc.Args["input"].(model.AddStudentInput))
+		return obj.AccessToken, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -842,43 +980,114 @@ func (ec *executionContext) _Mutation_addStudent(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.GetStudentResponse)
+	res := resTmp.(mypkg.JWT)
 	fc.Result = res
-	return ec.marshalNGetStudentResponse2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐGetStudentResponse(ctx, field.Selections, res)
+	return ec.marshalNJWT2graphqlᚑgolangᚋgraphᚋmypkgᚐJWT(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_addStudent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_JWTResponse_access_token(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Mutation",
+		Object:     "JWTResponse",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "success":
-				return ec.fieldContext_GetStudentResponse_success(ctx, field)
-			case "student":
-				return ec.fieldContext_GetStudentResponse_student(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type GetStudentResponse", field.Name)
+			return nil, errors.New("field of type JWT does not have child fields")
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_addStudent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_UpdateStudent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_UpdateStudent(ctx, field)
+func (ec *executionContext) _JWTResponse_refresh_token(ctx context.Context, field graphql.CollectedField, obj *model.JWTResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JWTResponse_refresh_token(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RefreshToken, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(mypkg.JWT)
+	fc.Result = res
+	return ec.marshalNJWT2graphqlᚑgolangᚋgraphᚋmypkgᚐJWT(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JWTResponse_refresh_token(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JWTResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type JWT does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JWTResponse_success(ctx context.Context, field graphql.CollectedField, obj *model.JWTResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JWTResponse_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JWTResponse_success(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JWTResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateStudent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateStudent(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -908,7 +1117,7 @@ func (ec *executionContext) _Mutation_UpdateStudent(ctx context.Context, field g
 	return ec.marshalNGetStudentResponse2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐGetStudentResponse(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_UpdateStudent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateStudent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -931,7 +1140,196 @@ func (ec *executionContext) fieldContext_Mutation_UpdateStudent(ctx context.Cont
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_UpdateStudent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_updateStudent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_signin(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_signin(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().Signin(rctx, fc.Args["input"].(model.SigninInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.JWTResponse)
+	fc.Result = res
+	return ec.marshalNJWTResponse2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐJWTResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_signin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "access_token":
+				return ec.fieldContext_JWTResponse_access_token(ctx, field)
+			case "refresh_token":
+				return ec.fieldContext_JWTResponse_refresh_token(ctx, field)
+			case "success":
+				return ec.fieldContext_JWTResponse_success(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type JWTResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_signin_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_signup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_signup(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().Signup(rctx, fc.Args["input"].(model.SignupInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.JWTResponse)
+	fc.Result = res
+	return ec.marshalNJWTResponse2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐJWTResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_signup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "access_token":
+				return ec.fieldContext_JWTResponse_access_token(ctx, field)
+			case "refresh_token":
+				return ec.fieldContext_JWTResponse_refresh_token(ctx, field)
+			case "success":
+				return ec.fieldContext_JWTResponse_success(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type JWTResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_signup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_refresh(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_refresh(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().Refresh(rctx, fc.Args["refresh_token"].(mypkg.JWT))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.JWTResponse)
+	fc.Result = res
+	return ec.marshalNJWTResponse2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐJWTResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_refresh(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "access_token":
+				return ec.fieldContext_JWTResponse_access_token(ctx, field)
+			case "refresh_token":
+				return ec.fieldContext_JWTResponse_refresh_token(ctx, field)
+			case "success":
+				return ec.fieldContext_JWTResponse_success(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type JWTResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_refresh_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
 	}
@@ -1056,6 +1454,70 @@ func (ec *executionContext) fieldContext_Query_students(ctx context.Context, fie
 	if fc.Args, err = ec.field_Query_students_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_protected(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_protected(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Query().Protected(rctx)
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			if ec.directives.JwtAuth == nil {
+				return nil, errors.New("directive jwtAuth is not implemented")
+			}
+			return ec.directives.JwtAuth(ctx, nil, directive0)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(string); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_protected(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -3303,6 +3765,94 @@ func (ec *executionContext) unmarshalInputAddStudentInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputSigninInput(ctx context.Context, obj interface{}) (model.SigninInput, error) {
+	var it model.SigninInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"email", "password"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "email":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+			it.Email, err = ec.unmarshalNEmail2graphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "password":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			it.Password, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSignupInput(ctx context.Context, obj interface{}) (model.SignupInput, error) {
+	var it model.SignupInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"email", "password", "confirm_password", "name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "email":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+			it.Email, err = ec.unmarshalNEmail2graphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "password":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			it.Password, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "confirm_password":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("confirm_password"))
+			it.ConfirmPassword, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateStudentInput(ctx context.Context, obj interface{}) (model.UpdateStudentInput, error) {
 	var it model.UpdateStudentInput
 	asMap := map[string]interface{}{}
@@ -3321,7 +3871,7 @@ func (ec *executionContext) unmarshalInputUpdateStudentInput(ctx context.Context
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			it.Name, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3337,7 +3887,7 @@ func (ec *executionContext) unmarshalInputUpdateStudentInput(ctx context.Context
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
-			it.Email, err = ec.unmarshalNEmail2graphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx, v)
+			it.Email, err = ec.unmarshalOEmail2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3477,6 +4027,48 @@ func (ec *executionContext) _GetStudentsResponse(ctx context.Context, sel ast.Se
 	return out
 }
 
+var jWTResponseImplementors = []string{"JWTResponse"}
+
+func (ec *executionContext) _JWTResponse(ctx context.Context, sel ast.SelectionSet, obj *model.JWTResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, jWTResponseImplementors)
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("JWTResponse")
+		case "access_token":
+
+			out.Values[i] = ec._JWTResponse_access_token(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "refresh_token":
+
+			out.Values[i] = ec._JWTResponse_refresh_token(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "success":
+
+			out.Values[i] = ec._JWTResponse_success(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -3496,19 +4088,37 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
-		case "addStudent":
+		case "updateStudent":
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_addStudent(ctx, field)
+				return ec._Mutation_updateStudent(ctx, field)
 			})
 
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "UpdateStudent":
+		case "signin":
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_UpdateStudent(ctx, field)
+				return ec._Mutation_signin(ctx, field)
+			})
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "signup":
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_signup(ctx, field)
+			})
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "refresh":
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_refresh(ctx, field)
 			})
 
 			if out.Values[i] == graphql.Null {
@@ -3577,6 +4187,29 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_students(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
+			})
+		case "protected":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_protected(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&invalids, 1)
 				}
@@ -3998,11 +4631,6 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalNAddStudentInput2graphqlᚑgolangᚋgraphᚋmodelᚐAddStudentInput(ctx context.Context, v interface{}) (model.AddStudentInput, error) {
-	res, err := ec.unmarshalInputAddStudentInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -4069,6 +4697,40 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNJWT2graphqlᚑgolangᚋgraphᚋmypkgᚐJWT(ctx context.Context, v interface{}) (mypkg.JWT, error) {
+	var res mypkg.JWT
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNJWT2graphqlᚑgolangᚋgraphᚋmypkgᚐJWT(ctx context.Context, sel ast.SelectionSet, v mypkg.JWT) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNJWTResponse2graphqlᚑgolangᚋgraphᚋmodelᚐJWTResponse(ctx context.Context, sel ast.SelectionSet, v model.JWTResponse) graphql.Marshaler {
+	return ec._JWTResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNJWTResponse2ᚖgraphqlᚑgolangᚋgraphᚋmodelᚐJWTResponse(ctx context.Context, sel ast.SelectionSet, v *model.JWTResponse) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._JWTResponse(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSigninInput2graphqlᚑgolangᚋgraphᚋmodelᚐSigninInput(ctx context.Context, v interface{}) (model.SigninInput, error) {
+	res, err := ec.unmarshalInputSigninInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNSignupInput2graphqlᚑgolangᚋgraphᚋmodelᚐSignupInput(ctx context.Context, v interface{}) (model.SignupInput, error) {
+	res, err := ec.unmarshalInputSignupInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
@@ -4403,6 +5065,22 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	}
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOEmail2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx context.Context, v interface{}) (*mypkg.Email, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(mypkg.Email)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOEmail2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐEmail(ctx context.Context, sel ast.SelectionSet, v *mypkg.Email) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {

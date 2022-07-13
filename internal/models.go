@@ -32,12 +32,25 @@ func (e *Role) Scan(src interface{}) error {
 	return nil
 }
 
+type RefreshToken struct {
+	ID        uuid.UUID    `json:"id"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
+	DeletedAt sql.NullTime `json:"deleted_at"`
+	Token     string       `json:"token"`
+	Ip        string       `json:"ip"`
+	UserAgent string       `json:"user_agent"`
+	ExpirOn   time.Time    `json:"expir_on"`
+	UserID    uuid.UUID    `json:"user_id"`
+}
+
 type Student struct {
 	ID        uuid.UUID      `json:"id"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt sql.NullTime   `json:"deleted_at"`
 	Email     string         `json:"email"`
+	Password  string         `json:"password"`
 	Name      sql.NullString `json:"name"`
 	Role      Role           `json:"role"`
 }
