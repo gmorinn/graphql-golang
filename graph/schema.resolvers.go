@@ -7,6 +7,8 @@ import (
 	"context"
 	"graphql-golang/graph/model"
 	"graphql-golang/graph/mypkg"
+
+	"github.com/google/uuid"
 )
 
 // UpdateStudent is the resolver for the UpdateStudent field.
@@ -39,6 +41,22 @@ func (r *mutationResolver) SingleUpload(ctx context.Context, file model.UploadIn
 	return r.FileService.UploadSingleFile(ctx, &file)
 }
 
+// PostMessage is the resolver for the postMessage field.
+func (r *mutationResolver) PostMessage(ctx context.Context, user string, content string) (string, error) {
+	msg := &model.Message{
+		ID:      uuid.New().String(),
+		User:    user,
+		Content: content,
+	}
+	r.ChatMessages = append(r.ChatMessages, msg)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, msgs := range r.ChatObservers {
+		msgs <- r.ChatMessages
+	}
+	return msg.ID, nil
+}
+
 // Student is the resolver for the student field.
 func (r *queryResolver) Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error) {
 	return r.StudentService.GetStudentByID(ctx, id)
@@ -54,11 +72,35 @@ func (r *queryResolver) Protected(ctx context.Context) (string, error) {
 	return r.AuthService.Protected(ctx)
 }
 
+// Messages is the resolver for the messages field.
+func (r *subscriptionResolver) Messages(ctx context.Context) (<-chan []*model.Message, error) {
+	id := uuid.New().String()
+	msgs := make(chan []*model.Message, 1)
+
+	go func() {
+		<-ctx.Done()
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		delete(r.ChatObservers, id)
+		close(msgs)
+	}()
+	r.mu.Lock()
+	r.ChatObservers[id] = msgs
+	r.mu.Unlock()
+	r.ChatObservers[id] <- r.ChatMessages
+
+	return msgs, nil
+}
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// Subscription returns SubscriptionResolver implementation.
+func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
+
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }

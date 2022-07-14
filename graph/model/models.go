@@ -63,6 +63,12 @@ type JWTResponse struct {
 	Success bool `json:"success"`
 }
 
+type Message struct {
+	ID      string `json:"id"`
+	User    string `json:"user"`
+	Content string `json:"content"`
+}
+
 type SigninInput struct {
 	// email of the user
 	Email mypkg.Email `json:"email"`

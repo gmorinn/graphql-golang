@@ -3,6 +3,7 @@ package main
 import (
 	"graphql-golang/config"
 	"graphql-golang/graph"
+	"graphql-golang/graph/model"
 	"graphql-golang/service"
 	"graphql-golang/utils"
 	"net/http"
@@ -10,11 +11,13 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 // Defining the Graphql handler
@@ -28,11 +31,25 @@ func graphqlHandler() gin.HandlerFunc {
 		StudentService: service.NewStudentService(server),
 		AuthService:    service.NewAuthService(server),
 		FileService:    service.NewFileService(server),
+		ChatMessages:   []*model.Message{},
+		ChatObservers:  map[string]chan []*model.Message{},
 	}}
 	c.Directives.JwtAuth = server.JwtAuth
 	c.Directives.HasRole = server.HasRole
 
-	h := handler.NewDefaultServer(graph.NewExecutableSchema(c))
+	h := handler.New(graph.NewExecutableSchema(c))
+	h.AddTransport(transport.POST{})
+	h.Use(extension.Introspection{})
+
+	// config websocket
+	h.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	})
 
 	h.AddTransport(transport.MultipartForm{
 		MaxMemory:     50000,
@@ -80,7 +97,7 @@ func main() {
 	// r.StaticFile("/favicon.ico", "favicon.ico")
 	r.StaticFS("/public", http.Dir(utils.Dir()+"/public"))
 
-	r.POST("/query", graphqlHandler())
+	r.Any("/query", graphqlHandler())
 	r.GET("/", playgroundHandler())
 	r.Run()
 }

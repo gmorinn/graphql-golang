@@ -59,6 +59,8 @@ type Mutation {
   updateRole(role: UserType!, id:UUID!): GetStudentResponse! @hasRole(role: ADMIN) @jwtAuth
   "upload a file"
   singleUpload(file: UploadInput!): File!
+  "post message to the chat"
+  postMessage(user: String!, content: String!): ID!
 }
 
 type JWTResponse {
@@ -133,3 +135,12 @@ input UpdateStudentInput {
   email: Email
 }
 
+type Message {
+  id: ID!
+  user: String!
+  content: String!
+}
+
+type Subscription {
+  messages: [Message!]
+}
