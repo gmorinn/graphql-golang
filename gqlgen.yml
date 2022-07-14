@@ -60,5 +60,9 @@ models:
     model: graphql-golang/graph/mypkg.URL
   JWT:
     model: graphql-golang/graph/mypkg.JWT
+  PositiveInt:
+    model: graphql-golang/graph/mypkg.PositiveInt
+  NonNegativeInt:
+    model: graphql-golang/graph/mypkg.NonNegativeInt
 
 

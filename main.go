@@ -39,7 +39,11 @@ func graphqlHandler() gin.HandlerFunc {
 
 	h := handler.New(graph.NewExecutableSchema(c))
 	h.AddTransport(transport.POST{})
-	h.Use(extension.Introspection{})
+
+	// disabling introspection on production
+	if os.Getenv("ENV") != "production" {
+		h.Use(extension.Introspection{})
+	}
 
 	// config websocket
 	h.AddTransport(transport.Websocket{

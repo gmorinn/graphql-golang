@@ -63,7 +63,7 @@ func (r *queryResolver) Student(ctx context.Context, id mypkg.UUID) (*model.GetS
 }
 
 // Students is the resolver for the students field.
-func (r *queryResolver) Students(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error) {
+func (r *queryResolver) Students(ctx context.Context, limit mypkg.NonNegativeInt, offset mypkg.NonNegativeInt) (*model.GetStudentsResponse, error) {
 	return r.StudentService.GetStudents(ctx, limit, offset)
 }
 

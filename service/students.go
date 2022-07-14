@@ -14,7 +14,7 @@ import (
 
 type IStudentService interface {
 	UpdateStudent(ctx context.Context, input *model.UpdateStudentInput) (*model.GetStudentResponse, error)
-	GetStudents(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error)
+	GetStudents(ctx context.Context, limit mypkg.NonNegativeInt, offset mypkg.NonNegativeInt) (*model.GetStudentsResponse, error)
 	GetStudentByID(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
 	UpdateRole(ctx context.Context, role *model.UserType, id *mypkg.UUID) (*model.GetStudentResponse, error)
 }
@@ -77,7 +77,7 @@ func (s *StudentService) UpdateStudent(ctx context.Context, input *model.UpdateS
 	}, nil
 }
 
-func (s *StudentService) GetStudents(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error) {
+func (s *StudentService) GetStudents(ctx context.Context, limit mypkg.NonNegativeInt, offset mypkg.NonNegativeInt) (*model.GetStudentsResponse, error) {
 	var res []*model.Student = make([]*model.Student, 0)
 
 	var err = s.server.Store.ExecTx(ctx, func(q *db.Queries) error {

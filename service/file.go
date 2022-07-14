@@ -71,7 +71,7 @@ func (s *FileService) UploadSingleFile(ctx context.Context, file *model.UploadIn
 		defer dst.Close()
 		if file.Height != nil || file.Width != nil {
 			if *file.Height > 0 && *file.Width > 0 {
-				go utils.CropImage(fn, *file.Width, *file.Height)
+				go utils.CropImage(fn, int(*file.Width), int(*file.Height))
 			}
 		}
 		arg := db.CreateFileParams{

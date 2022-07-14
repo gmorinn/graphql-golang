@@ -112,9 +112,9 @@ type UploadInput struct {
 	// The file to upload
 	File graphql.Upload `json:"file"`
 	// width of the image if it needs to be resized
-	Width *int `json:"width"`
+	Width *mypkg.PositiveInt `json:"width"`
 	// height of the image if it needs to be resized
-	Height *int `json:"height"`
+	Height *mypkg.PositiveInt `json:"height"`
 }
 
 type UserType string

@@ -4,6 +4,8 @@ scalar UUID
 scalar Email
 scalar URL
 scalar JWT
+scalar PositiveInt
+scalar NonNegativeInt
 directive @hasRole(role: UserType!) on FIELD_DEFINITION
 directive @jwtAuth on FIELD_DEFINITION
 
@@ -22,9 +24,9 @@ interface Response {
 
 type Query {
   "returns one student by his id precising in the payload"
-  student(id:UUID!): GetStudentResponse!
+  student(id:UUID!): GetStudentResponse! @hasRole(role: USER) @jwtAuth
   "returns all students with a limit precising in the payload, need to be admin to access"
-  students(limit: Int!, offset: Int!): GetStudentsResponse!
+  students(limit: NonNegativeInt!, offset: NonNegativeInt!): GetStudentsResponse! @hasRole(role: ADMIN) @jwtAuth
   "test if the user is connected"
   protected: String! @jwtAuth
 }
@@ -41,14 +43,14 @@ input UploadInput {
   "The file to upload"
   file: Upload!
   "width of the image if it needs to be resized"
-  width: Int
+  width: PositiveInt
   "height of the image if it needs to be resized"
-  height: Int
+  height: PositiveInt
 }
 
 
 type Mutation {
-  updateStudent(input: UpdateStudentInput!): GetStudentResponse!
+  updateStudent(input: UpdateStudentInput!): GetStudentResponse! @hasRole(role: USER) @jwtAuth
   "connect a user to the application"
   signin(input: SigninInput!): JWTResponse!
   "create a new user"
@@ -58,9 +60,9 @@ type Mutation {
   "update the user's role"
   updateRole(role: UserType!, id:UUID!): GetStudentResponse! @hasRole(role: ADMIN) @jwtAuth
   "upload a file"
-  singleUpload(file: UploadInput!): File!
+  singleUpload(file: UploadInput!): File! @hasRole(role: USER) @jwtAuth
   "post message to the chat"
-  postMessage(user: String!, content: String!): ID!
+  postMessage(user: String!, content: String!): ID! @hasRole(role: USER) @jwtAuth
 }
 
 type JWTResponse {

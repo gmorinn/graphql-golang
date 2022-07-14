@@ -92,7 +92,7 @@ type ComplexityRoot struct {
 	Query struct {
 		Protected func(childComplexity int) int
 		Student   func(childComplexity int, id mypkg.UUID) int
-		Students  func(childComplexity int, limit int, offset int) int
+		Students  func(childComplexity int, limit mypkg.NonNegativeInt, offset mypkg.NonNegativeInt) int
 	}
 
 	Student struct {
@@ -121,7 +121,7 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Student(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error)
-	Students(ctx context.Context, limit int, offset int) (*model.GetStudentsResponse, error)
+	Students(ctx context.Context, limit mypkg.NonNegativeInt, offset mypkg.NonNegativeInt) (*model.GetStudentsResponse, error)
 	Protected(ctx context.Context) (string, error)
 }
 type SubscriptionResolver interface {
@@ -354,7 +354,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.Students(childComplexity, args["limit"].(int), args["offset"].(int)), true
+		return e.complexity.Query.Students(childComplexity, args["limit"].(mypkg.NonNegativeInt), args["offset"].(mypkg.NonNegativeInt)), true
 
 	case "Student.created_at":
 		if e.complexity.Student.CreatedAt == nil {
@@ -508,6 +508,8 @@ scalar UUID
 scalar Email
 scalar URL
 scalar JWT
+scalar PositiveInt
+scalar NonNegativeInt
 directive @hasRole(role: UserType!) on FIELD_DEFINITION
 directive @jwtAuth on FIELD_DEFINITION
 
@@ -526,11 +528,11 @@ interface Response {
 
 type Query {
   "returns one student by his id precising in the payload"
-  student(id:UUID!): GetStudentResponse!
+  student(id:UUID!): GetStudentResponse! @hasRole(role: USER) @jwtAuth
   "returns all students with a limit precising in the payload, need to be admin to access"
-  students(limit: Int!, offset: Int!): GetStudentsResponse!
+  students(limit: NonNegativeInt!, offset: NonNegativeInt!): GetStudentsResponse! @hasRole(role: ADMIN) @jwtAuth
   "test if the user is connected"
-  protected: String! @jwtAuth
+  protected: String! @jwtAuth 
 }
 
 "The ` + "`" + `File` + "`" + ` type, represents the response of uploading a file."
@@ -545,14 +547,14 @@ input UploadInput {
   "The file to upload"
   file: Upload!
   "width of the image if it needs to be resized"
-  width: Int
+  width: PositiveInt
   "height of the image if it needs to be resized"
-  height: Int
+  height: PositiveInt
 }
 
 
 type Mutation {
-  updateStudent(input: UpdateStudentInput!): GetStudentResponse!
+  updateStudent(input: UpdateStudentInput!): GetStudentResponse! @hasRole(role: USER) @jwtAuth
   "connect a user to the application"
   signin(input: SigninInput!): JWTResponse!
   "create a new user"
@@ -562,9 +564,9 @@ type Mutation {
   "update the user's role"
   updateRole(role: UserType!, id:UUID!): GetStudentResponse! @hasRole(role: ADMIN) @jwtAuth
   "upload a file"
-  singleUpload(file: UploadInput!): File!
+  singleUpload(file: UploadInput!): File! @hasRole(role: USER) @jwtAuth
   "post message to the chat"
-  postMessage(user: String!, content: String!): ID!
+  postMessage(user: String!, content: String!): ID! @hasRole(role: USER) @jwtAuth
 }
 
 type JWTResponse {
@@ -826,19 +828,19 @@ func (ec *executionContext) field_Query_student_args(ctx context.Context, rawArg
 func (ec *executionContext) field_Query_students_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 int
+	var arg0 mypkg.NonNegativeInt
 	if tmp, ok := rawArgs["limit"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
-		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		arg0, err = ec.unmarshalNNonNegativeInt2graphqlᚑgolangᚋgraphᚋmypkgᚐNonNegativeInt(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
 	args["limit"] = arg0
-	var arg1 int
+	var arg1 mypkg.NonNegativeInt
 	if tmp, ok := rawArgs["offset"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
-		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		arg1, err = ec.unmarshalNNonNegativeInt2graphqlᚑgolangᚋgraphᚋmypkgᚐNonNegativeInt(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -1540,8 +1542,38 @@ func (ec *executionContext) _Mutation_updateStudent(ctx context.Context, field g
 		}
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateStudent(rctx, fc.Args["input"].(model.UpdateStudentInput))
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().UpdateStudent(rctx, fc.Args["input"].(model.UpdateStudentInput))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "USER")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+		directive2 := func(ctx context.Context) (interface{}, error) {
+			if ec.directives.JwtAuth == nil {
+				return nil, errors.New("directive jwtAuth is not implemented")
+			}
+			return ec.directives.JwtAuth(ctx, nil, directive1)
+		}
+
+		tmp, err := directive2(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*model.GetStudentResponse); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *graphql-golang/graph/model.GetStudentResponse`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1881,8 +1913,38 @@ func (ec *executionContext) _Mutation_singleUpload(ctx context.Context, field gr
 		}
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SingleUpload(rctx, fc.Args["file"].(model.UploadInput))
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().SingleUpload(rctx, fc.Args["file"].(model.UploadInput))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "USER")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+		directive2 := func(ctx context.Context) (interface{}, error) {
+			if ec.directives.JwtAuth == nil {
+				return nil, errors.New("directive jwtAuth is not implemented")
+			}
+			return ec.directives.JwtAuth(ctx, nil, directive1)
+		}
+
+		tmp, err := directive2(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*model.File); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *graphql-golang/graph/model.File`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1946,8 +2008,38 @@ func (ec *executionContext) _Mutation_postMessage(ctx context.Context, field gra
 		}
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().PostMessage(rctx, fc.Args["user"].(string), fc.Args["content"].(string))
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().PostMessage(rctx, fc.Args["user"].(string), fc.Args["content"].(string))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "USER")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+		directive2 := func(ctx context.Context) (interface{}, error) {
+			if ec.directives.JwtAuth == nil {
+				return nil, errors.New("directive jwtAuth is not implemented")
+			}
+			return ec.directives.JwtAuth(ctx, nil, directive1)
+		}
+
+		tmp, err := directive2(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(string); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2001,8 +2093,38 @@ func (ec *executionContext) _Query_student(ctx context.Context, field graphql.Co
 		}
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Student(rctx, fc.Args["id"].(mypkg.UUID))
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Query().Student(rctx, fc.Args["id"].(mypkg.UUID))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "USER")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+		directive2 := func(ctx context.Context) (interface{}, error) {
+			if ec.directives.JwtAuth == nil {
+				return nil, errors.New("directive jwtAuth is not implemented")
+			}
+			return ec.directives.JwtAuth(ctx, nil, directive1)
+		}
+
+		tmp, err := directive2(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*model.GetStudentResponse); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *graphql-golang/graph/model.GetStudentResponse`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2062,8 +2184,38 @@ func (ec *executionContext) _Query_students(ctx context.Context, field graphql.C
 		}
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Students(rctx, fc.Args["limit"].(int), fc.Args["offset"].(int))
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Query().Students(rctx, fc.Args["limit"].(mypkg.NonNegativeInt), fc.Args["offset"].(mypkg.NonNegativeInt))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "ADMIN")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+		directive2 := func(ctx context.Context) (interface{}, error) {
+			if ec.directives.JwtAuth == nil {
+				return nil, errors.New("directive jwtAuth is not implemented")
+			}
+			return ec.directives.JwtAuth(ctx, nil, directive1)
+		}
+
+		tmp, err := directive2(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*model.GetStudentsResponse); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *graphql-golang/graph/model.GetStudentsResponse`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4638,7 +4790,7 @@ func (ec *executionContext) unmarshalInputUploadInput(ctx context.Context, obj i
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("width"))
-			it.Width, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			it.Width, err = ec.unmarshalOPositiveInt2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐPositiveInt(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4646,7 +4798,7 @@ func (ec *executionContext) unmarshalInputUploadInput(ctx context.Context, obj i
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("height"))
-			it.Height, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			it.Height, err = ec.unmarshalOPositiveInt2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐPositiveInt(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -5631,6 +5783,16 @@ func (ec *executionContext) marshalNMessage2ᚖgraphqlᚑgolangᚋgraphᚋmodel�
 	return ec._Message(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNNonNegativeInt2graphqlᚑgolangᚋgraphᚋmypkgᚐNonNegativeInt(ctx context.Context, v interface{}) (mypkg.NonNegativeInt, error) {
+	var res mypkg.NonNegativeInt
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNNonNegativeInt2graphqlᚑgolangᚋgraphᚋmypkgᚐNonNegativeInt(ctx context.Context, sel ast.SelectionSet, v mypkg.NonNegativeInt) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNSigninInput2graphqlᚑgolangᚋgraphᚋmodelᚐSigninInput(ctx context.Context, v interface{}) (model.SigninInput, error) {
 	res, err := ec.unmarshalInputSigninInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6011,22 +6173,6 @@ func (ec *executionContext) marshalOEmail2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐ
 	return v
 }
 
-func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := graphql.UnmarshalInt(v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	res := graphql.MarshalInt(*v)
-	return res
-}
-
 func (ec *executionContext) marshalOMessage2ᚕᚖgraphqlᚑgolangᚋgraphᚋmodelᚐMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Message) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -6072,6 +6218,22 @@ func (ec *executionContext) marshalOMessage2ᚕᚖgraphqlᚑgolangᚋgraphᚋmod
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOPositiveInt2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐPositiveInt(ctx context.Context, v interface{}) (*mypkg.PositiveInt, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(mypkg.PositiveInt)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOPositiveInt2ᚖgraphqlᚑgolangᚋgraphᚋmypkgᚐPositiveInt(ctx context.Context, sel ast.SelectionSet, v *mypkg.PositiveInt) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
