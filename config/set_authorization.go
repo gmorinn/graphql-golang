@@ -87,7 +87,7 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func getUserContext(ctx context.Context) *JwtContent {
+func (server *Server) GetUserContext(ctx context.Context) *JwtContent {
 	var res *JwtContent = nil
 	raw := ctx.Value("jwt")
 	if raw == nil {
@@ -114,7 +114,7 @@ func getUserContext(ctx context.Context) *JwtContent {
 }
 
 func (server *Server) JwtAuth(ctx context.Context, obj interface{}, next graphql.Resolver) (interface{}, error) {
-	userCtx := getUserContext(ctx)
+	userCtx := server.GetUserContext(ctx)
 
 	if userCtx == nil {
 		return nil, &gqlerror.Error{
@@ -125,7 +125,7 @@ func (server *Server) JwtAuth(ctx context.Context, obj interface{}, next graphql
 }
 
 func (server *Server) HasRole(ctx context.Context, obj interface{}, next graphql.Resolver, role model.UserType) (interface{}, error) {
-	userCtx := getUserContext(ctx)
+	userCtx := server.GetUserContext(ctx)
 
 	if userCtx == nil || string(userCtx.Role) != strings.ToLower(role.String()) {
 		return nil, &gqlerror.Error{

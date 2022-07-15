@@ -6,6 +6,7 @@ import (
 	"graphql-golang/graph/model"
 	"graphql-golang/graph/mypkg"
 	db "graphql-golang/internal"
+	"graphql-golang/storage"
 	"graphql-golang/utils"
 	"strings"
 
@@ -114,36 +115,7 @@ func (s *StudentService) GetStudents(ctx context.Context, limit mypkg.NonNegativ
 }
 
 func (s *StudentService) GetStudentByID(ctx context.Context, id mypkg.UUID) (*model.GetStudentResponse, error) {
-	var res model.Student
-
-	var err = s.server.Store.ExecTx(ctx, func(q *db.Queries) error {
-		id := string(id)
-
-		stud, err := q.GetStudentByID(ctx, uuid.MustParse(id))
-		if err != nil {
-			return err
-		}
-
-		res = model.Student{
-			ID:        mypkg.UUID(stud.ID.String()),
-			Email:     mypkg.Email(stud.Email),
-			Name:      stud.Name.String,
-			CreatedAt: stud.CreatedAt,
-			UpdatedAt: stud.UpdatedAt,
-			DeletedAt: &stud.DeletedAt.Time,
-			Role:      model.UserType(stud.Role),
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, utils.ErrorResponse("TX_GET_STUDENT_BY_ID", err)
-	}
-
-	return &model.GetStudentResponse{
-		Student: &res,
-		Success: true,
-	}, nil
+	return storage.GetUser(ctx, id)
 }
 
 func (s *StudentService) UpdateRole(ctx context.Context, role *model.UserType, id *mypkg.UUID) (*model.GetStudentResponse, error) {

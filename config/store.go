@@ -15,7 +15,7 @@ import (
 
 type Store struct {
 	*sqlc.Queries
-	db *sql.DB
+	Db *sql.DB
 }
 
 type Server struct {
@@ -29,14 +29,14 @@ func NewStore(db *sql.DB) *Store {
 	// db.SetMaxOpenConns(140)
 	// db.SetMaxIdleConns(140)
 	return &Store{
-		db:      db,
+		Db:      db,
 		Queries: sqlc.New(db),
 	}
 }
 
 // execTx executes a function within a database transaction
 func (store *Store) ExecTx(ctx context.Context, fn func(*sqlc.Queries) error) error {
-	tx, err := store.db.BeginTx(ctx, nil)
+	tx, err := store.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}

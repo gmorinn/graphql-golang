@@ -24,7 +24,7 @@ interface Response {
 
 type Query {
   "returns one student by his id precising in the payload"
-  student(id:UUID!): GetStudentResponse! @hasRole(role: USER) @jwtAuth
+  student(id:UUID!): GetStudentResponse! @jwtAuth
   "returns all students with a limit precising in the payload, need to be admin to access"
   students(limit: NonNegativeInt!, offset: NonNegativeInt!): GetStudentsResponse! @hasRole(role: ADMIN) @jwtAuth
   "test if the user is connected"
@@ -50,7 +50,7 @@ input UploadInput {
 
 
 type Mutation {
-  updateStudent(input: UpdateStudentInput!): GetStudentResponse! @hasRole(role: USER) @jwtAuth
+  updateStudent(input: UpdateStudentInput!): GetStudentResponse! @jwtAuth
   "connect a user to the application"
   signin(input: SigninInput!): JWTResponse!
   "create a new user"
@@ -60,9 +60,9 @@ type Mutation {
   "update the user's role"
   updateRole(role: UserType!, id:UUID!): GetStudentResponse! @hasRole(role: ADMIN) @jwtAuth
   "upload a file"
-  singleUpload(file: UploadInput!): File! @hasRole(role: USER) @jwtAuth
+  singleUpload(file: UploadInput!): File! @jwtAuth
   "post message to the chat"
-  postMessage(user: String!, content: String!): ID! @hasRole(role: USER) @jwtAuth
+  postMessage(user: String!, content: String!): ID! @jwtAuth
 }
 
 type JWTResponse {

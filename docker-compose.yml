@@ -34,7 +34,7 @@ services:
       - data:/var/lib/postgresql/data
     env_file:
       - .env
-    command: -p ${POSTGRES_PORT}
+    command: -p ${POSTGRES_PORT} -c log_statement=all -c log_destination=stderr
 
 volumes:
   data:

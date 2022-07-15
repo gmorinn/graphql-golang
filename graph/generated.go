@@ -528,11 +528,11 @@ interface Response {
 
 type Query {
   "returns one student by his id precising in the payload"
-  student(id:UUID!): GetStudentResponse! @hasRole(role: USER) @jwtAuth
+  student(id:UUID!): GetStudentResponse! @jwtAuth
   "returns all students with a limit precising in the payload, need to be admin to access"
   students(limit: NonNegativeInt!, offset: NonNegativeInt!): GetStudentsResponse! @hasRole(role: ADMIN) @jwtAuth
   "test if the user is connected"
-  protected: String! @jwtAuth 
+  protected: String! @jwtAuth
 }
 
 "The ` + "`" + `File` + "`" + ` type, represents the response of uploading a file."
@@ -554,7 +554,7 @@ input UploadInput {
 
 
 type Mutation {
-  updateStudent(input: UpdateStudentInput!): GetStudentResponse! @hasRole(role: USER) @jwtAuth
+  updateStudent(input: UpdateStudentInput!): GetStudentResponse! @jwtAuth
   "connect a user to the application"
   signin(input: SigninInput!): JWTResponse!
   "create a new user"
@@ -564,9 +564,9 @@ type Mutation {
   "update the user's role"
   updateRole(role: UserType!, id:UUID!): GetStudentResponse! @hasRole(role: ADMIN) @jwtAuth
   "upload a file"
-  singleUpload(file: UploadInput!): File! @hasRole(role: USER) @jwtAuth
+  singleUpload(file: UploadInput!): File! @jwtAuth
   "post message to the chat"
-  postMessage(user: String!, content: String!): ID! @hasRole(role: USER) @jwtAuth
+  postMessage(user: String!, content: String!): ID! @jwtAuth
 }
 
 type JWTResponse {
@@ -1547,23 +1547,13 @@ func (ec *executionContext) _Mutation_updateStudent(ctx context.Context, field g
 			return ec.resolvers.Mutation().UpdateStudent(rctx, fc.Args["input"].(model.UpdateStudentInput))
 		}
 		directive1 := func(ctx context.Context) (interface{}, error) {
-			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "USER")
-			if err != nil {
-				return nil, err
-			}
-			if ec.directives.HasRole == nil {
-				return nil, errors.New("directive hasRole is not implemented")
-			}
-			return ec.directives.HasRole(ctx, nil, directive0, role)
-		}
-		directive2 := func(ctx context.Context) (interface{}, error) {
 			if ec.directives.JwtAuth == nil {
 				return nil, errors.New("directive jwtAuth is not implemented")
 			}
-			return ec.directives.JwtAuth(ctx, nil, directive1)
+			return ec.directives.JwtAuth(ctx, nil, directive0)
 		}
 
-		tmp, err := directive2(rctx)
+		tmp, err := directive1(rctx)
 		if err != nil {
 			return nil, graphql.ErrorOnPath(ctx, err)
 		}
@@ -1918,23 +1908,13 @@ func (ec *executionContext) _Mutation_singleUpload(ctx context.Context, field gr
 			return ec.resolvers.Mutation().SingleUpload(rctx, fc.Args["file"].(model.UploadInput))
 		}
 		directive1 := func(ctx context.Context) (interface{}, error) {
-			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "USER")
-			if err != nil {
-				return nil, err
-			}
-			if ec.directives.HasRole == nil {
-				return nil, errors.New("directive hasRole is not implemented")
-			}
-			return ec.directives.HasRole(ctx, nil, directive0, role)
-		}
-		directive2 := func(ctx context.Context) (interface{}, error) {
 			if ec.directives.JwtAuth == nil {
 				return nil, errors.New("directive jwtAuth is not implemented")
 			}
-			return ec.directives.JwtAuth(ctx, nil, directive1)
+			return ec.directives.JwtAuth(ctx, nil, directive0)
 		}
 
-		tmp, err := directive2(rctx)
+		tmp, err := directive1(rctx)
 		if err != nil {
 			return nil, graphql.ErrorOnPath(ctx, err)
 		}
@@ -2013,23 +1993,13 @@ func (ec *executionContext) _Mutation_postMessage(ctx context.Context, field gra
 			return ec.resolvers.Mutation().PostMessage(rctx, fc.Args["user"].(string), fc.Args["content"].(string))
 		}
 		directive1 := func(ctx context.Context) (interface{}, error) {
-			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "USER")
-			if err != nil {
-				return nil, err
-			}
-			if ec.directives.HasRole == nil {
-				return nil, errors.New("directive hasRole is not implemented")
-			}
-			return ec.directives.HasRole(ctx, nil, directive0, role)
-		}
-		directive2 := func(ctx context.Context) (interface{}, error) {
 			if ec.directives.JwtAuth == nil {
 				return nil, errors.New("directive jwtAuth is not implemented")
 			}
-			return ec.directives.JwtAuth(ctx, nil, directive1)
+			return ec.directives.JwtAuth(ctx, nil, directive0)
 		}
 
-		tmp, err := directive2(rctx)
+		tmp, err := directive1(rctx)
 		if err != nil {
 			return nil, graphql.ErrorOnPath(ctx, err)
 		}
@@ -2098,23 +2068,13 @@ func (ec *executionContext) _Query_student(ctx context.Context, field graphql.Co
 			return ec.resolvers.Query().Student(rctx, fc.Args["id"].(mypkg.UUID))
 		}
 		directive1 := func(ctx context.Context) (interface{}, error) {
-			role, err := ec.unmarshalNUserType2graphqlᚑgolangᚋgraphᚋmodelᚐUserType(ctx, "USER")
-			if err != nil {
-				return nil, err
-			}
-			if ec.directives.HasRole == nil {
-				return nil, errors.New("directive hasRole is not implemented")
-			}
-			return ec.directives.HasRole(ctx, nil, directive0, role)
-		}
-		directive2 := func(ctx context.Context) (interface{}, error) {
 			if ec.directives.JwtAuth == nil {
 				return nil, errors.New("directive jwtAuth is not implemented")
 			}
-			return ec.directives.JwtAuth(ctx, nil, directive1)
+			return ec.directives.JwtAuth(ctx, nil, directive0)
 		}
 
-		tmp, err := directive2(rctx)
+		tmp, err := directive1(rctx)
 		if err != nil {
 			return nil, graphql.ErrorOnPath(ctx, err)
 		}

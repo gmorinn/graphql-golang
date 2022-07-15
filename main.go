@@ -4,7 +4,9 @@ import (
 	"graphql-golang/config"
 	"graphql-golang/graph"
 	"graphql-golang/graph/model"
+	"graphql-golang/graph/mypkg"
 	"graphql-golang/service"
+	"graphql-golang/storage"
 	"graphql-golang/utils"
 	"net/http"
 	"os"
@@ -21,12 +23,11 @@ import (
 )
 
 // Defining the Graphql handler
-func graphqlHandler() gin.HandlerFunc {
+func graphqlHandler(server *config.Server) gin.HandlerFunc {
 	// NewExecutableSchema and Config are in the generated.go file
 	// Resolver is in the resolver.go file
 
-	server := config.NewServer()
-
+	// init service
 	c := graph.Config{Resolvers: &graph.Resolver{
 		StudentService: service.NewStudentService(server),
 		AuthService:    service.NewAuthService(server),
@@ -34,11 +35,23 @@ func graphqlHandler() gin.HandlerFunc {
 		ChatMessages:   []*model.Message{},
 		ChatObservers:  map[string]chan []*model.Message{},
 	}}
+
+	// Custom Complexity Calculation for expensive queries
+	countComplexity := func(childComplexity int, limit mypkg.NonNegativeInt, offset mypkg.NonNegativeInt) int {
+		return int(limit) * childComplexity
+	}
+	c.Complexity.Query.Students = countComplexity
+
+	// custom directives
 	c.Directives.JwtAuth = server.JwtAuth
 	c.Directives.HasRole = server.HasRole
 
 	h := handler.New(graph.NewExecutableSchema(c))
+
 	h.AddTransport(transport.POST{})
+
+	// limit Maximum Query Depth of 200
+	h.Use(extension.FixedComplexityLimit(200))
 
 	// disabling introspection on production
 	if os.Getenv("ENV") != "production" {
@@ -55,6 +68,7 @@ func graphqlHandler() gin.HandlerFunc {
 		},
 	})
 
+	// config file upload
 	h.AddTransport(transport.MultipartForm{
 		MaxMemory:     50000,
 		MaxUploadSize: 50000,
@@ -85,9 +99,16 @@ func main() {
 	// Setting up Gin
 	r := gin.Default()
 
+	// init server
+	server := config.NewServer()
+
+	// init storage dataloayer
+	loader := storage.NewLoaders(server.Store)
+
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 	r.Use(mwServerHeader())
+	r.Use(storage.Middleware(loader))
 	r.Use(config.AuthMiddleware())
 	r.Use(gzip.Gzip(gzip.BestCompression, gzip.WithExcludedExtensions([]string{".pdf", ".mp4"})))
 	r.Use(cors.New(cors.Config{
@@ -101,7 +122,7 @@ func main() {
 	// r.StaticFile("/favicon.ico", "favicon.ico")
 	r.StaticFS("/public", http.Dir(utils.Dir()+"/public"))
 
-	r.Any("/query", graphqlHandler())
+	r.Any("/query", graphqlHandler(server))
 	r.GET("/", playgroundHandler())
 	r.Run()
 }
